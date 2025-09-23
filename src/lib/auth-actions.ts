@@ -30,11 +30,6 @@ export async function signUp(formData: FormData) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}`);
   }
 
-  // If user was created successfully, redirect to onboarding
-  if (authData.user) {
-    redirect("/onboarding");
-  }
-
   redirect("/login?message=Check your email to confirm your account.");
 }
 
