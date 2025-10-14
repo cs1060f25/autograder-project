@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { requireAuth } from "./user-utils";
 import { revalidatePath } from "next/cache";
+import { saveRubricScores, getRubricByAssignment } from "./rubric-actions";
 
 export interface FileAttachment {
   name: string;
@@ -279,7 +280,8 @@ export async function deleteFileFromStorage(
 export async function gradeSubmission(
   submissionId: string,
   grade: number,
-  feedback?: string
+  feedback?: string,
+  rubricScores?: Record<string, number>
 ) {
   const userProfile = await requireAuth();
 
@@ -291,11 +293,6 @@ export async function gradeSubmission(
   }
 
   const supabase = await createClient();
-
-  // Validate grade
-  if (grade < 0 || grade > 100) {
-    return { success: false, error: "Grade must be between 0 and 100" };
-  }
 
   // Check if submission exists
   const { data: submission, error: submissionError } = await supabase
@@ -315,11 +312,45 @@ export async function gradeSubmission(
     };
   }
 
+  let finalGrade = grade;
+
+  // Handle rubric-based grading if rubric scores are provided
+  if (rubricScores) {
+    // Get rubric for this assignment
+    const rubricResult = await getRubricByAssignment(submission.assignment_id);
+    if (!rubricResult.success || !rubricResult.rubric) {
+      return { success: false, error: "Rubric not found for this assignment" };
+    }
+
+    // Save rubric scores
+    const rubricScoresResult = await saveRubricScores(
+      submissionId,
+      rubricResult.rubric.id,
+      rubricScores,
+      userProfile.id
+    );
+
+    if (!rubricScoresResult.success) {
+      return { success: false, error: rubricScoresResult.error };
+    }
+
+    // Calculate total from rubric scores
+    finalGrade = Object.values(rubricScores).reduce(
+      (sum, score) => sum + score,
+      0
+    );
+  } else {
+    // Traditional grading - validate grade
+    if (grade < 0 || grade > 100) {
+      return { success: false, error: "Grade must be between 0 and 100" };
+    }
+  }
+
   // Update submission with grade
   const { error } = await supabase
     .from("submissions")
     .update({
-      grade,
+      grade: finalGrade,
       feedback: feedback || null,
       status: "graded",
       graded_by: userProfile.id,
@@ -334,6 +365,7 @@ export async function gradeSubmission(
 
   revalidatePath("/dashboard/ta");
   revalidatePath("/dashboard/instructor");
+  revalidatePath("/dashboard/student");
   return { success: true, error: null };
 }
 

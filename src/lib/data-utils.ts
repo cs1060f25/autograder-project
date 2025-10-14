@@ -23,6 +23,7 @@ export interface Assignment {
     name: string;
     code: string;
   };
+  rubric?: Rubric;
 }
 
 export interface Submission {
@@ -56,6 +57,34 @@ export interface Course {
     assignments: number;
     enrollments: number;
   };
+}
+
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  description: string;
+  max_points: number;
+}
+
+export interface Rubric {
+  id: string;
+  assignment_id: string;
+  criteria: RubricCriterion[];
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RubricScores {
+  id: string;
+  submission_id: string;
+  rubric_id: string;
+  scores: Record<string, number>; // criterion_id -> score
+  total_score: number;
+  graded_by: string;
+  graded_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Student Dashboard Data Functions

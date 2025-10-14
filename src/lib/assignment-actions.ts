@@ -4,6 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import { requireAuth } from "./user-utils";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { createRubric } from "./rubric-actions";
+import { RubricCriterion } from "./data-utils";
 
 export async function createAssignment(formData: FormData) {
   const userProfile = await requireAuth();
@@ -181,10 +183,32 @@ export async function createAssignmentAction(formData: FormData) {
     instructions: formData.get("instructions") as string,
   };
 
-  const { error } = await supabase.from("assignments").insert(assignmentData);
+  const { data: assignment, error } = await supabase
+    .from("assignments")
+    .insert(assignmentData)
+    .select()
+    .single();
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  // Handle rubric creation if provided
+  const rubricData = formData.get("rubric_data") as string;
+  if (rubricData) {
+    try {
+      const criteria: RubricCriterion[] = JSON.parse(rubricData);
+      if (criteria.length > 0) {
+        const rubricResult = await createRubric(assignment.id, criteria);
+        if (!rubricResult.success) {
+          // If rubric creation fails, we should still return success for assignment
+          // but log the error
+          console.error("Failed to create rubric:", rubricResult.error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse rubric data:", error);
+    }
   }
 
   revalidatePath("/dashboard/instructor");
@@ -223,6 +247,38 @@ export async function updateAssignmentAction(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  // Handle rubric update if provided
+  const rubricData = formData.get("rubric_data") as string;
+  if (rubricData) {
+    try {
+      const criteria: RubricCriterion[] = JSON.parse(rubricData);
+
+      // Check if rubric exists
+      const { data: existingRubric } = await supabase
+        .from("rubrics")
+        .select("id")
+        .eq("assignment_id", assignmentId)
+        .single();
+
+      if (existingRubric) {
+        // Update existing rubric
+        const { updateRubric } = await import("./rubric-actions");
+        const rubricResult = await updateRubric(existingRubric.id, criteria);
+        if (!rubricResult.success) {
+          console.error("Failed to update rubric:", rubricResult.error);
+        }
+      } else if (criteria.length > 0) {
+        // Create new rubric
+        const rubricResult = await createRubric(assignmentId, criteria);
+        if (!rubricResult.success) {
+          console.error("Failed to create rubric:", rubricResult.error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse rubric data:", error);
+    }
   }
 
   revalidatePath("/dashboard/instructor");

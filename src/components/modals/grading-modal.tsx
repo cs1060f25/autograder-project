@@ -17,6 +17,8 @@ import {
   getSubmissionDetails,
   FileAttachment,
 } from "@/lib/submission-actions";
+import { getRubricByAssignment, updateRubric } from "@/lib/rubric-actions";
+import { Rubric, RubricCriterion } from "@/lib/data-utils";
 import {
   FileText,
   Download,
@@ -25,6 +27,10 @@ import {
   User,
   Calendar,
   Sparkles,
+  Plus,
+  Trash2,
+  Edit3,
+  Save,
 } from "lucide-react";
 
 interface GradingModalProps {
@@ -76,6 +82,10 @@ export function GradingModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
+  const [rubric, setRubric] = useState<Rubric | null>(null);
+  const [rubricScores, setRubricScores] = useState<Record<string, number>>({});
+  const [editingRubric, setEditingRubric] = useState(false);
+  const [rubricCriteria, setRubricCriteria] = useState<RubricCriterion[]>([]);
 
   useEffect(() => {
     if (isOpen && submissionId) {
@@ -95,6 +105,22 @@ export function GradingModal({
         setSubmission(result.submission);
         setGrade(result.submission.grade?.toString() || "");
         setFeedback(result.submission.feedback || "");
+
+        // Load rubric for this assignment
+        const rubricResult = await getRubricByAssignment(
+          result.submission.assignment.id
+        );
+        if (rubricResult.success && rubricResult.rubric) {
+          setRubric(rubricResult.rubric);
+          setRubricCriteria(rubricResult.rubric.criteria);
+
+          // Initialize rubric scores with zeros
+          const initialScores: Record<string, number> = {};
+          rubricResult.rubric.criteria.forEach((criterion: RubricCriterion) => {
+            initialScores[criterion.id] = 0;
+          });
+          setRubricScores(initialScores);
+        }
       } else {
         setError(result.error || "Failed to load submission details");
       }
@@ -106,45 +132,104 @@ export function GradingModal({
   };
 
   const handleGradeSubmit = async () => {
-    if (!submissionId || !grade.trim()) {
-      setError("Please enter a grade");
+    if (!submissionId) {
+      setError("No submission selected");
       return;
     }
 
-    const gradeValue = parseInt(grade);
-    if (
-      isNaN(gradeValue) ||
-      gradeValue < 0 ||
-      gradeValue > 100 ||
-      !Number.isInteger(gradeValue)
-    ) {
-      setError("Grade must be a whole number between 0 and 100");
-      return;
-    }
+    // If using rubric, validate rubric scores
+    if (rubric && rubricCriteria.length > 0) {
+      const hasValidScores = rubricCriteria.every(
+        (criterion) =>
+          rubricScores[criterion.id] !== undefined &&
+          rubricScores[criterion.id] >= 0 &&
+          rubricScores[criterion.id] <= criterion.max_points
+      );
 
-    setGrading(true);
-    setError(null);
-
-    try {
-      const result = await gradeSubmission(submissionId, gradeValue, feedback);
-      if (result.success) {
-        setSuccess("Grade submitted successfully!");
-        setTimeout(() => {
-          onGradeSubmitted();
-          onClose();
-          // Reset form
-          setGrade("");
-          setFeedback("");
-          setSuccess(null);
-          setSubmission(null);
-        }, 1500);
-      } else {
-        setError(result.error || "Failed to submit grade");
+      if (!hasValidScores) {
+        setError("Please provide valid scores for all rubric criteria");
+        return;
       }
-    } catch (err) {
-      setError("Failed to submit grade. Please try again.");
-    } finally {
-      setGrading(false);
+
+      setGrading(true);
+      setError(null);
+
+      try {
+        const result = await gradeSubmission(
+          submissionId,
+          0, // grade not used when rubric scores provided
+          feedback,
+          rubricScores
+        );
+
+        if (result.success) {
+          setSuccess("Grade submitted successfully!");
+          setTimeout(() => {
+            onGradeSubmitted();
+            onClose();
+            // Reset form
+            setGrade("");
+            setFeedback("");
+            setSuccess(null);
+            setSubmission(null);
+            setRubric(null);
+            setRubricScores({});
+            setRubricCriteria([]);
+          }, 1500);
+        } else {
+          setError(result.error || "Failed to submit grade");
+        }
+      } catch (err) {
+        setError("Failed to submit grade. Please try again.");
+      } finally {
+        setGrading(false);
+      }
+    } else {
+      // Traditional grading
+      if (!grade.trim()) {
+        setError("Please enter a grade");
+        return;
+      }
+
+      const gradeValue = parseInt(grade);
+      if (
+        isNaN(gradeValue) ||
+        gradeValue < 0 ||
+        gradeValue > 100 ||
+        !Number.isInteger(gradeValue)
+      ) {
+        setError("Grade must be a whole number between 0 and 100");
+        return;
+      }
+
+      setGrading(true);
+      setError(null);
+
+      try {
+        const result = await gradeSubmission(
+          submissionId,
+          gradeValue,
+          feedback
+        );
+        if (result.success) {
+          setSuccess("Grade submitted successfully!");
+          setTimeout(() => {
+            onGradeSubmitted();
+            onClose();
+            // Reset form
+            setGrade("");
+            setFeedback("");
+            setSuccess(null);
+            setSubmission(null);
+          }, 1500);
+        } else {
+          setError(result.error || "Failed to submit grade");
+        }
+      } catch (err) {
+        setError("Failed to submit grade. Please try again.");
+      } finally {
+        setGrading(false);
+      }
     }
   };
 
@@ -164,6 +249,75 @@ export function GradingModal({
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const addCriterion = () => {
+    const newCriterion: RubricCriterion = {
+      id: Date.now().toString(),
+      name: "",
+      description: "",
+      max_points: 0,
+    };
+    setRubricCriteria([...rubricCriteria, newCriterion]);
+  };
+
+  const removeCriterion = (id: string) => {
+    setRubricCriteria(rubricCriteria.filter((c) => c.id !== id));
+    // Remove from scores as well
+    const newScores = { ...rubricScores };
+    delete newScores[id];
+    setRubricScores(newScores);
+  };
+
+  const updateCriterion = (
+    id: string,
+    field: keyof RubricCriterion,
+    value: string | number
+  ) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  };
+
+  const updateRubricScore = (criterionId: string, score: number) => {
+    setRubricScores({
+      ...rubricScores,
+      [criterionId]: score,
+    });
+  };
+
+  const getTotalRubricPoints = () => {
+    return rubricCriteria.reduce(
+      (sum, criterion) => sum + criterion.max_points,
+      0
+    );
+  };
+
+  const getTotalRubricScore = () => {
+    return Object.values(rubricScores).reduce((sum, score) => sum + score, 0);
+  };
+
+  const handleSaveRubricChanges = async () => {
+    if (!rubric) return;
+
+    setGrading(true);
+    setError(null);
+
+    try {
+      const result = await updateRubric(rubric.id, rubricCriteria);
+      if (result.success) {
+        setRubric({ ...rubric, criteria: rubricCriteria });
+        setEditingRubric(false);
+        setSuccess("Rubric updated successfully!");
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(result.error || "Failed to update rubric");
+      }
+    } catch (err) {
+      setError("Failed to update rubric. Please try again.");
+    } finally {
+      setGrading(false);
+    }
   };
 
   if (!submission && loading) {
@@ -358,25 +512,209 @@ export function GradingModal({
 
             {/* Grading Form */}
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="grade">Grade (0-100)</Label>
-                <Input
-                  id="grade"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={grade}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Only allow integers
-                    if (value === "" || /^\d+$/.test(value)) {
-                      setGrade(value);
-                    }
-                  }}
-                  placeholder="Enter grade (0-100)"
-                />
-              </div>
+              {rubric && rubricCriteria.length > 0 ? (
+                // Rubric-based grading
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Rubric Grading</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingRubric(!editingRubric)}
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      {editingRubric ? "Cancel Edit" : "Edit Rubric"}
+                    </Button>
+                  </div>
+
+                  {editingRubric ? (
+                    // Rubric editing mode
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600">
+                        Edit the rubric criteria. Changes will be saved to the
+                        assignment.
+                      </p>
+
+                      {rubricCriteria.map((criterion, index) => (
+                        <div
+                          key={criterion.id}
+                          className="p-4 border rounded-lg space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">
+                              Criterion {index + 1}
+                            </h4>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeCriterion(criterion.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Name</Label>
+                            <Input
+                              value={criterion.name}
+                              onChange={(e) =>
+                                updateCriterion(
+                                  criterion.id,
+                                  "name",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="e.g., Code Quality"
+                            />
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Description</Label>
+                            <textarea
+                              value={criterion.description}
+                              onChange={(e) =>
+                                updateCriterion(
+                                  criterion.id,
+                                  "description",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Describe what this criterion evaluates..."
+                              className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            />
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Max Points</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={criterion.max_points}
+                              onChange={(e) =>
+                                updateCriterion(
+                                  criterion.id,
+                                  "max_points",
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              placeholder="10"
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addCriterion}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Criterion
+                      </Button>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={handleSaveRubricChanges}
+                          disabled={grading}
+                          className="flex-1"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Save Rubric Changes
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setEditingRubric(false)}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Rubric scoring mode
+                    <div className="space-y-4">
+                      {rubricCriteria.map((criterion, index) => (
+                        <div
+                          key={criterion.id}
+                          className="p-4 border rounded-lg"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">{criterion.name}</h4>
+                            <span className="text-sm text-gray-500">
+                              {rubricScores[criterion.id] || 0} /{" "}
+                              {criterion.max_points} points
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {criterion.description}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`score-${criterion.id}`}>
+                              Score:
+                            </Label>
+                            <Input
+                              id={`score-${criterion.id}`}
+                              type="number"
+                              min="0"
+                              max={criterion.max_points}
+                              value={rubricScores[criterion.id] || 0}
+                              onChange={(e) =>
+                                updateRubricScore(
+                                  criterion.id,
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              className="w-20"
+                            />
+                            <span className="text-sm text-gray-500">
+                              / {criterion.max_points}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Total Score:</span>
+                          <span className="font-bold text-blue-600">
+                            {getTotalRubricScore()} / {getTotalRubricPoints()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Traditional grading
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Traditional Grading</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="grade">Grade (0-100)</Label>
+                    <Input
+                      id="grade"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={grade}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow integers
+                        if (value === "" || /^\d+$/.test(value)) {
+                          setGrade(value);
+                        }
+                      }}
+                      placeholder="Enter grade (0-100)"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="feedback" className="flex items-center gap-2">

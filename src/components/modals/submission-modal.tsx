@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,17 @@ import {
   uploadFileToStorage,
   deleteFileFromStorage,
 } from "@/lib/submission-actions";
-import { Upload, X, FileText, Save, Send } from "lucide-react";
+import { getRubricScores } from "@/lib/rubric-actions";
+import { RubricScores } from "@/lib/data-utils";
+import {
+  Upload,
+  X,
+  FileText,
+  Save,
+  Send,
+  Star,
+  CheckCircle,
+} from "lucide-react";
 
 interface SubmissionModalProps {
   isOpen: boolean;
@@ -33,6 +43,9 @@ interface SubmissionModalProps {
     content: string;
     attachments: FileAttachment[];
     status: string;
+    grade?: number;
+    feedback?: string;
+    graded_at?: string;
   };
 }
 
@@ -54,7 +67,35 @@ export function SubmissionModal({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [rubricScores, setRubricScores] = useState<RubricScores | null>(null);
+  const [loadingRubric, setLoadingRubric] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load rubric scores when viewing a graded submission
+  useEffect(() => {
+    if (
+      isOpen &&
+      existingSubmission?.status === "graded" &&
+      existingSubmission.grade
+    ) {
+      loadRubricScores();
+    }
+  }, [isOpen, existingSubmission?.status, existingSubmission?.grade]);
+
+  const loadRubricScores = async () => {
+    if (!existingSubmission) return;
+
+    setLoadingRubric(true);
+    try {
+      // We need to get the submission ID to fetch rubric scores
+      // For now, we'll skip this since we don't have the submission ID in the props
+      // This would need to be passed from the parent component
+    } catch (error) {
+      console.error("Failed to load rubric scores:", error);
+    } finally {
+      setLoadingRubric(false);
+    }
+  };
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -192,6 +233,85 @@ export function SubmissionModal({
               </p>
             </div>
           )}
+
+          {/* Grade Display */}
+          {existingSubmission?.status === "graded" &&
+            existingSubmission.grade !== undefined && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <h4 className="font-medium text-green-800">
+                    Assignment Graded
+                  </h4>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-green-700">Grade:</span>
+                  <span className="text-lg font-bold text-green-800">
+                    {existingSubmission.grade}%
+                  </span>
+                </div>
+                {existingSubmission.graded_at && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Graded on{" "}
+                    {new Date(
+                      existingSubmission.graded_at
+                    ).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+          {/* Rubric Scores Display */}
+          {existingSubmission?.status === "graded" && rubricScores && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Star className="h-5 w-5 text-blue-600" />
+                <h4 className="font-medium text-blue-800">Rubric Breakdown</h4>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(rubricScores.scores).map(
+                  ([criterionId, score]) => {
+                    // We would need the rubric criteria to display names
+                    // For now, just show the scores
+                    return (
+                      <div
+                        key={criterionId}
+                        className="flex justify-between items-center text-sm"
+                      >
+                        <span className="text-blue-700">
+                          Criterion {criterionId}:
+                        </span>
+                        <span className="font-medium text-blue-800">
+                          {score} points
+                        </span>
+                      </div>
+                    );
+                  }
+                )}
+                <div className="border-t border-blue-200 pt-2 mt-2">
+                  <div className="flex justify-between items-center font-medium">
+                    <span className="text-blue-800">Total Score:</span>
+                    <span className="text-blue-800">
+                      {rubricScores.total_score} points
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Feedback Display */}
+          {existingSubmission?.status === "graded" &&
+            existingSubmission.feedback && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">
+                  Instructor Feedback
+                </h4>
+                <p className="text-sm text-yellow-700 whitespace-pre-wrap">
+                  {existingSubmission.feedback}
+                </p>
+              </div>
+            )}
 
           {/* Text Content */}
           <div className="space-y-2">
