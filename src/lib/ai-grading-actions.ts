@@ -2,7 +2,6 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { requireAuth } from "./user-utils";
-import { revalidatePath } from "next/cache";
 import { RubricCriterion } from "./data-utils";
 
 export interface AIGradeData {
@@ -117,13 +116,30 @@ export async function triggerAIGrading(submissionId: string): Promise<{
       guidance: criterion.description,
     }));
 
-    // Process each PDF attachment by passing public URL to API (no file upload)
+    // Process each PDF attachment by fetching the file and passing as File object
     for (const attachment of submission.attachments) {
       if (attachment.type === "application/pdf") {
         try {
+          // Fetch the PDF file from the URL
+          const fileResponse = await fetch(attachment.url);
+          if (!fileResponse.ok) {
+            throw new Error(
+              `Failed to fetch PDF file: ${fileResponse.statusText}`
+            );
+          }
+
+          const fileBuffer = await fileResponse.arrayBuffer();
+          const pdfFile = new File(
+            [fileBuffer],
+            attachment.name || "submission.pdf",
+            {
+              type: "application/pdf",
+            }
+          );
+
           // Prepare request
           const formData = new FormData();
-          formData.append("file", attachment.url); // pass public URL
+          formData.append("file", pdfFile); // pass File object
           formData.append("rubric", JSON.stringify(apiRubric));
 
           const apiUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/grade`;

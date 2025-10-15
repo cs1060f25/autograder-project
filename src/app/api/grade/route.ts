@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const maxDuration = 60; // optional: raise if PDFs are large
 
@@ -23,10 +23,17 @@ type GradeResult = {
 };
 
 export async function POST(req: Request) {
+  let fileId: string | undefined;
+  let anthropic: Anthropic | undefined;
+
   try {
     const form = await req.formData();
-    const pdfUrl = form.get("file");
+    const pdfFile = form.get("file") as File;
     const rubricRaw = form.get("rubric");
+
+    if (!pdfFile) {
+      return Response.json({ error: "`file` is required" }, { status: 400 });
+    }
 
     if (typeof rubricRaw !== "string") {
       return Response.json(
@@ -47,90 +54,199 @@ export async function POST(req: Request) {
       );
     }
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
-    if (!process.env.OPENAI_KEY) {
-      return Response.json({ error: "Missing OPENAI_KEY" }, { status: 500 });
+    if (!process.env.CLAUDE_KEY) {
+      return Response.json(
+        { error: "Missing ANTHROPIC_API_KEY" },
+        { status: 500 }
+      );
     }
 
-    const schema = {
-      type: "object",
-      additionalProperties: false,
-      required: ["totalAwarded", "totalPossible", "items", "overallFeedback"],
-      properties: {
-        totalAwarded: { type: "number" },
-        totalPossible: { type: "number" },
-        items: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["id", "label", "maxPoints", "points", "comments"],
-            properties: {
-              id: { type: "string" },
-              label: { type: "string" },
-              maxPoints: { type: "number" },
-              points: { type: "number" },
-              comments: { type: "string" },
-            },
-          },
+    anthropic = new Anthropic({
+      apiKey: process.env.CLAUDE_KEY,
+    });
+
+    // Upload the PDF file using the Files API
+    try {
+      const fileBuffer = await pdfFile.arrayBuffer();
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([fileBuffer], pdfFile.name, { type: pdfFile.type })
+      );
+
+      const uploadResponse = await fetch("https://api.anthropic.com/v1/files", {
+        method: "POST",
+        headers: {
+          "x-api-key": process.env.CLAUDE_KEY!,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "files-api-2025-04-14",
         },
-        overallFeedback: { type: "string" },
-      },
-    };
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("File upload error:", errorText);
+        return Response.json(
+          { error: "Failed to upload PDF file" },
+          { status: 502 }
+        );
+      }
+
+      const uploadedFile = await uploadResponse.json();
+      fileId = uploadedFile.id;
+    } catch (uploadError: any) {
+      console.error("File upload error:", uploadError);
+      return Response.json(
+        { error: "Failed to upload PDF file" },
+        { status: 502 }
+      );
+    }
 
     const systemPrompt = [
       "You are a fair and accurate grader, but also reasonably generous. Most of the time, you should award at least 85-95% of the total possible points.",
       "You MUST only use the provided rubric.",
-      "Be concise, specific, and cite concrete issues from the submission.",
+      "Be concise, specific, and mention specific phrases from the submission. Do not include specific citations in comments.",
       "Do NOT invent content not present in the PDF.",
       "If a criterion is not evidenced, award 0 and explain clearly.",
+      "You must respond with valid JSON in the exact format specified.",
     ].join(" ");
 
     const rubricInstruction = `Here is the rubric as JSON. Adhere strictly to maxPoints and do not exceed totals.\n${JSON.stringify(
       rubric
     )}`;
 
-    const resp = await openai.responses.create({
-      model: "gpt-5-mini",
-      text: {
-        format: {
-          name: "GradeResult",
-          type: "json_schema",
-          strict: true,
-          schema: schema,
-        },
-      },
-      input: [
-        {
-          role: "system",
-          content: [{ type: "input_text", text: systemPrompt }],
-        },
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: rubricInstruction },
+    const userPrompt = [
+      rubricInstruction,
+      "Grade the attached student submission against the rubric. " +
+        "Return STRICTLY the JSON that matches this schema: " +
+        JSON.stringify({
+          totalAwarded: "number",
+          totalPossible: "number",
+          items: [
             {
-              type: "input_text",
-              text:
-                "Grade the attached student submission against the rubric. " +
-                "Return STRICTLY the JSON that matches the schema. " +
-                "Use short, actionable comments per item. No more than 1-2 sentences per item.",
+              id: "string",
+              label: "string",
+              maxPoints: "number",
+              points: "number",
+              comments: "string",
             },
-            { type: "input_file", file_url: pdfUrl as string },
           ],
-        },
-      ],
-    });
+          overallFeedback: "string",
+        }) +
+        " Use short, actionable comments per item. No more than 1-2 sentences per item.",
+    ].join("\n\n");
 
-    const text = resp.output_text;
+    let claudeResponse;
+    try {
+      const messageResponse = await fetch(
+        "https://api.anthropic.com/v1/messages",
+        {
+          method: "POST",
+          headers: {
+            "x-api-key": process.env.CLAUDE_KEY!,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "files-api-2025-04-14",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 4000,
+            system: systemPrompt,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: userPrompt,
+                  },
+                  {
+                    type: "document",
+                    source: {
+                      type: "file",
+                      file_id: fileId,
+                    },
+                    citations: { enabled: true },
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      if (!messageResponse.ok) {
+        const errorText = await messageResponse.text();
+        console.error("Claude API error:", errorText);
+        return Response.json(
+          { error: "Failed to process with Claude API" },
+          { status: 502 }
+        );
+      }
+
+      claudeResponse = await messageResponse.json();
+    } catch (apiError: any) {
+      console.error("Claude API error:", apiError);
+      return Response.json(
+        { error: "Failed to process with Claude API" },
+        { status: 502 }
+      );
+    }
+
+    const text =
+      claudeResponse.content[0]?.type === "text"
+        ? claudeResponse.content[0].text
+        : null;
+
     if (!text) {
+      // Clean up the uploaded file
+      try {
+        await fetch(`https://api.anthropic.com/v1/files/${fileId}`, {
+          method: "DELETE",
+          headers: {
+            "x-api-key": process.env.CLAUDE_KEY!,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "files-api-2025-04-14",
+          },
+        });
+      } catch (cleanupError) {
+        console.error("File cleanup error:", cleanupError);
+      }
       return Response.json(
         { error: "No structured output from model" },
         { status: 502 }
       );
     }
 
-    const result = JSON.parse(text) as GradeResult;
+    // Extract JSON from the response text (in case there's extra text)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonText = jsonMatch ? jsonMatch[0] : text;
+
+    let result: GradeResult;
+    try {
+      result = JSON.parse(jsonText) as GradeResult;
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      console.error("Response text:", text);
+      // Clean up the uploaded file
+      try {
+        await fetch(`https://api.anthropic.com/v1/files/${fileId}`, {
+          method: "DELETE",
+          headers: {
+            "x-api-key": process.env.CLAUDE_KEY!,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "files-api-2025-04-14",
+          },
+        });
+      } catch (cleanupError) {
+        console.error("File cleanup error:", cleanupError);
+      }
+      return Response.json(
+        { error: "Invalid JSON response from model" },
+        { status: 502 }
+      );
+    }
     const totalPossible = rubric.reduce((s, r) => s + (r.maxPoints ?? 0), 0);
     const clampedItems = result.items.map((it) => {
       const max = Math.max(0, it.maxPoints);
@@ -144,9 +260,39 @@ export async function POST(req: Request) {
       items: clampedItems,
       overallFeedback: result.overallFeedback ?? "",
     };
+
+    // Clean up the uploaded file after successful processing
+    try {
+      await fetch(`https://api.anthropic.com/v1/files/${fileId}`, {
+        method: "DELETE",
+        headers: {
+          "x-api-key": process.env.CLAUDE_KEY!,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "files-api-2025-04-14",
+        },
+      });
+    } catch (cleanupError) {
+      console.error("File cleanup error:", cleanupError);
+    }
+
     return Response.json(safeResult, { status: 200 });
   } catch (err: any) {
     console.error(err);
+    // Clean up the uploaded file if it exists
+    if (fileId) {
+      try {
+        await fetch(`https://api.anthropic.com/v1/files/${fileId}`, {
+          method: "DELETE",
+          headers: {
+            "x-api-key": process.env.CLAUDE_KEY!,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "files-api-2025-04-14",
+          },
+        });
+      } catch (cleanupError) {
+        console.error("File cleanup error:", cleanupError);
+      }
+    }
     const msg =
       typeof err?.message === "string"
         ? err.message
