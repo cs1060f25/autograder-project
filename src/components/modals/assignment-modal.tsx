@@ -287,7 +287,7 @@ export function AssignmentModal({
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   <Label className="text-base font-medium">
-                    Grading Rubric (Optional)
+                    Grading Rubric
                   </Label>
                 </div>
                 <Button

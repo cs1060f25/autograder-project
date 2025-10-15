@@ -236,6 +236,7 @@ export function StudentDashboardContent({
           dueDate={selectedAssignment.due_date}
           studentId={studentId}
           instructions={selectedAssignment.instructions || undefined}
+          submissionId={selectedAssignment.submission?.id}
           existingSubmission={
             selectedAssignment.submission
               ? {

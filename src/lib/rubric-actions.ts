@@ -178,7 +178,8 @@ export async function saveRubricScores(
   submissionId: string,
   rubricId: string,
   scores: Record<string, number>,
-  gradedBy: string
+  gradedBy: string,
+  aiComments?: Record<string, string>
 ) {
   const userProfile = await requireAuth();
 
@@ -234,15 +235,21 @@ export async function saveRubricScores(
 
   if (existingScores) {
     // Update existing scores
+    const updateData: any = {
+      scores,
+      total_score: totalScore,
+      graded_by: gradedBy,
+      graded_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (aiComments) {
+      updateData.ai_comments = aiComments;
+    }
+
     const { error } = await supabase
       .from("rubric_scores")
-      .update({
-        scores,
-        total_score: totalScore,
-        graded_by: gradedBy,
-        graded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", existingScores.id);
 
     if (error) {
@@ -250,14 +257,20 @@ export async function saveRubricScores(
     }
   } else {
     // Create new scores
-    const { error } = await supabase.from("rubric_scores").insert({
+    const insertData: any = {
       submission_id: submissionId,
       rubric_id: rubricId,
       scores,
       total_score: totalScore,
       graded_by: gradedBy,
       graded_at: new Date().toISOString(),
-    });
+    };
+
+    if (aiComments) {
+      insertData.ai_comments = aiComments;
+    }
+
+    const { error } = await supabase.from("rubric_scores").insert(insertData);
 
     if (error) {
       return { success: false, error: error.message };

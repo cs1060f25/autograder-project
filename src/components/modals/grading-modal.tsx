@@ -20,6 +20,11 @@ import {
 import { getRubricByAssignment, updateRubric } from "@/lib/rubric-actions";
 import { Rubric, RubricCriterion } from "@/lib/data-utils";
 import {
+  getAIGradingStatus,
+  regenerateAIGrade,
+  AIGradeData,
+} from "@/lib/ai-grading-actions";
+import {
   FileText,
   Download,
   Star,
@@ -31,6 +36,10 @@ import {
   Trash2,
   Edit3,
   Save,
+  RefreshCw,
+  Bot,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface GradingModalProps {
@@ -86,6 +95,11 @@ export function GradingModal({
   const [rubricScores, setRubricScores] = useState<Record<string, number>>({});
   const [editingRubric, setEditingRubric] = useState(false);
   const [rubricCriteria, setRubricCriteria] = useState<RubricCriterion[]>([]);
+  const [aiGradeData, setAiGradeData] = useState<AIGradeData | null>(null);
+  const [aiGradingStatus, setAiGradingStatus] = useState<string>("pending");
+  const [aiGradedAt, setAiGradedAt] = useState<string | null>(null);
+  const [regeneratingAI, setRegeneratingAI] = useState(false);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
 
   useEffect(() => {
     if (isOpen && submissionId) {
@@ -106,6 +120,14 @@ export function GradingModal({
         setGrade(result.submission.grade?.toString() || "");
         setFeedback(result.submission.feedback || "");
 
+        // Load AI grading status
+        const aiStatusResult = await getAIGradingStatus(submissionId);
+        if (aiStatusResult.success && aiStatusResult.status) {
+          setAiGradingStatus(aiStatusResult.status.status);
+          setAiGradeData(aiStatusResult.status.ai_grade_data || null);
+          setAiGradedAt(aiStatusResult.status.ai_graded_at || null);
+        }
+
         // Load rubric for this assignment
         const rubricResult = await getRubricByAssignment(
           result.submission.assignment.id
@@ -114,10 +136,21 @@ export function GradingModal({
           setRubric(rubricResult.rubric);
           setRubricCriteria(rubricResult.rubric.criteria);
 
-          // Initialize rubric scores with zeros
+          // Initialize rubric scores with AI suggestions if available
           const initialScores: Record<string, number> = {};
           rubricResult.rubric.criteria.forEach((criterion: RubricCriterion) => {
-            initialScores[criterion.id] = 0;
+            if (
+              aiStatusResult.success &&
+              aiStatusResult.status?.ai_grade_data
+            ) {
+              // Pre-fill with AI scores
+              const aiItem = aiStatusResult.status.ai_grade_data.items.find(
+                (item) => item.id === criterion.id
+              );
+              initialScores[criterion.id] = aiItem?.points || 0;
+            } else {
+              initialScores[criterion.id] = 0;
+            }
           });
           setRubricScores(initialScores);
         }
@@ -320,6 +353,29 @@ export function GradingModal({
     }
   };
 
+  const handleRegenerateAI = async () => {
+    if (!submissionId) return;
+
+    setRegeneratingAI(true);
+    setError(null);
+
+    try {
+      const result = await regenerateAIGrade(submissionId);
+      if (result.success) {
+        setSuccess("AI grading regenerated successfully!");
+        // Reload submission details to get new AI data
+        await loadSubmissionDetails();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(result.error || "Failed to regenerate AI grade");
+      }
+    } catch (err) {
+      setError("Failed to regenerate AI grade. Please try again.");
+    } finally {
+      setRegeneratingAI(false);
+    }
+  };
+
   if (!submission && loading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -373,27 +429,128 @@ export function GradingModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative overflow-hidden rounded-xl border border-blue-200/50 bg-gradient-to-r from-blue-50/80 via-indigo-50/80 to-purple-50/80 p-4 shadow-sm backdrop-blur-sm">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5"></div>
-          <div className="relative flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm">
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
+        {/* AI Suggestions Panel */}
+        {aiGradeData && aiGradingStatus === "completed" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setShowAISuggestions(!showAISuggestions)}
+                className="flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-900"
+              >
+                <Bot className="h-4 w-4" />
+                AI Suggestions
+                {showAISuggestions ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRegenerateAI}
+                disabled={regeneratingAI}
+                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${
+                    regeneratingAI ? "animate-spin" : ""
+                  }`}
+                />
+                {regeneratingAI ? "Regenerating..." : "Regenerate AI Grade"}
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                AI-Assisted Grading Coming Soon
-              </h3>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                We will add AI-assistance features after this milestone. For
-                now, this is just meant to demonstrate the primary user journey.
-              </p>
+
+            {showAISuggestions && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  <Sparkles className="h-4 w-4" />
+                  <span>AI-Generated Scores and Feedback</span>
+                  {aiGradedAt && (
+                    <span className="text-xs text-blue-600 ml-auto">
+                      Generated: {new Date(aiGradedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                {/* AI Rubric Scores */}
+                <div className="space-y-3">
+                  {aiGradeData.items.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-lg p-3 border border-blue-100"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-900">
+                          {item.label}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">
+                            {item.points} / {item.maxPoints} points
+                          </span>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                            AI Generated
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2">
+                        {item.comments}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* AI Overall Feedback */}
+                {aiGradeData.overallFeedback && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Overall AI Feedback
+                    </h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {aiGradeData.overallFeedback}
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-blue-100 rounded-lg p-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium text-blue-800">
+                      AI Total Score:
+                    </span>
+                    <span className="font-bold text-blue-900">
+                      {aiGradeData.totalAwarded} / {aiGradeData.totalPossible}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI Grading Status */}
+        {aiGradingStatus === "pending" && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+              <span className="text-sm text-yellow-800">
+                AI grading in progress...
+              </span>
             </div>
           </div>
-          <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 opacity-60"></div>
-          <div className="absolute -bottom-1 -left-1 h-2 w-2 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 opacity-40"></div>
-        </div>
+        )}
+
+        {aiGradingStatus === "failed" && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-red-600" />
+              <span className="text-sm text-red-800">
+                AI grading failed. Please grade manually.
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 min-h-0">
           {/* Left Column - Assignment Details and PDF Viewer */}
@@ -758,7 +915,12 @@ export function GradingModal({
           <Button
             type="button"
             onClick={handleGradeSubmit}
-            disabled={grading || !grade.trim()}
+            disabled={
+              grading ||
+              (rubric && rubricCriteria.length > 0
+                ? false // Enable for rubric grading (validation happens in handleGradeSubmit)
+                : !grade.trim()) // Only require grade for traditional grading
+            }
           >
             {grading ? "Submitting..." : "Submit Grade"}
           </Button>

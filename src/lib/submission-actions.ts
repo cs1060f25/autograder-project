@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { requireAuth } from "./user-utils";
 import { revalidatePath } from "next/cache";
 import { saveRubricScores, getRubricByAssignment } from "./rubric-actions";
+import { triggerAIGrading } from "./ai-grading-actions";
 
 export interface FileAttachment {
   name: string;
@@ -98,92 +99,29 @@ export async function createSubmission(
   }
 
   revalidatePath("/dashboard/student");
-  return { success: true, error: null };
-}
 
-export async function saveDraftSubmission(
-  assignmentId: string,
-  content: string,
-  attachments: FileAttachment[] = []
-) {
-  const userProfile = await requireAuth();
-
-  if (userProfile.role !== "student") {
-    return { success: false, error: "Only students can save drafts" };
-  }
-
-  const supabase = await createClient();
-
-  // Check if assignment exists and is published
-  const { data: assignment, error: assignmentError } = await supabase
-    .from("assignments")
-    .select("id, status, due_date, course_id")
-    .eq("id", assignmentId)
-    .eq("status", "published")
-    .single();
-
-  if (assignmentError || !assignment) {
-    return { success: false, error: "Assignment not found or not published" };
-  }
-
-  // Check if due date has passed
-  const now = new Date();
-  const dueDate = new Date(assignment.due_date);
-  if (now > dueDate) {
-    return { success: false, error: "Assignment due date has passed" };
-  }
-
-  // Check if student is enrolled in the course
-  const { data: enrollment } = await supabase
-    .from("course_enrollments")
-    .select("id")
-    .eq("student_id", userProfile.id)
-    .eq("course_id", assignment.course_id)
-    .single();
-
-  if (!enrollment) {
-    return { success: false, error: "You are not enrolled in this course" };
-  }
-
-  // Check if submission already exists
-  const { data: existingSubmission } = await supabase
-    .from("submissions")
-    .select("id")
-    .eq("assignment_id", assignmentId)
-    .eq("student_id", userProfile.id)
-    .single();
-
-  if (existingSubmission) {
-    // Update existing submission
-    const { error } = await supabase
+  // Trigger AI grading if assignment has a rubric and PDF attachments
+  if (
+    attachments.length > 0 &&
+    attachments.some((att) => att.type === "application/pdf")
+  ) {
+    // Get the submission ID for AI grading
+    const { data: newSubmission } = await supabase
       .from("submissions")
-      .update({
-        content,
-        attachments,
-        status: "draft",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingSubmission.id);
+      .select("id")
+      .eq("assignment_id", assignmentId)
+      .eq("student_id", userProfile.id)
+      .single();
 
-    if (error) {
-      return { success: false, error: error.message };
-    }
-  } else {
-    // Create new draft submission
-    const { error } = await supabase.from("submissions").insert({
-      assignment_id: assignmentId,
-      student_id: userProfile.id,
-      content,
-      attachments,
-      status: "draft",
-    });
-
-    if (error) {
-      return { success: false, error: error.message };
+    if (newSubmission) {
+      // Trigger AI grading asynchronously (don't wait for it)
+      triggerAIGrading(newSubmission.id).catch((error) => {
+        console.error("AI grading failed:", error);
+        // Don't fail the submission if AI grading fails
+      });
     }
   }
 
-  revalidatePath("/dashboard/student");
   return { success: true, error: null };
 }
 
