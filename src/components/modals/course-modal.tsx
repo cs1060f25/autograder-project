@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { createCourseAction, updateCourseAction } from "@/lib/course-actions";
 import { Course } from "@/lib/data-utils";
+import { Box, FormControl, InputLabel, MenuItem } from "@mui/material";
 
 interface CourseModalProps {
   isOpen: boolean;
@@ -72,7 +73,7 @@ export function CourseModal({
   const years = Array.from({ length: 4 }, (_, i) => currentYear + i);
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onClose={() => setIsOpen(false)}>
       <DialogContent className="sm:max-w-[425px]">
         <form
           onSubmit={async (e) => {
@@ -131,37 +132,36 @@ export function CourseModal({
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="semester">Semester</Label>
-                <Select name="semester" defaultValue={course?.semester || ""}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select semester" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Fall">Fall</SelectItem>
-                    <SelectItem value="Spring">Spring</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Box sx={{ display: "grid", gap: 1 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Semester</InputLabel>
+                  <Select
+                    name="semester"
+                    defaultValue={course?.semester || ""}
+                    label="Semester"
+                  >
+                    <MenuItem value="Fall">Fall</MenuItem>
+                    <MenuItem value="Spring">Spring</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
 
-              <div className="grid gap-2">
-                <Label htmlFor="year">Year</Label>
-                <Select
-                  name="year"
-                  defaultValue={course?.year?.toString() || ""}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
+              <Box sx={{ display: "grid", gap: 1 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Year</InputLabel>
+                  <Select
+                    name="year"
+                    defaultValue={course?.year?.toString() || ""}
+                    label="Year"
+                  >
                     {years.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
+                      <MenuItem key={year} value={year.toString()}>
                         {year}
-                      </SelectItem>
+                      </MenuItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </Select>
+                </FormControl>
+              </Box>
             </div>
           </div>
 

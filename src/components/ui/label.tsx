@@ -1,24 +1,26 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
+import * as React from "react";
+import { FormLabel, FormLabelProps } from "@mui/material";
 
-import { cn } from "@/lib/utils"
+interface LabelProps extends FormLabelProps {}
 
-function Label({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+function Label({ sx, ...props }: LabelProps) {
   return (
-    <LabelPrimitive.Root
-      data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className
-      )}
+    <FormLabel
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        fontSize: "0.875rem",
+        lineHeight: 1,
+        fontWeight: 500,
+        userSelect: "none",
+        ...sx,
+      }}
       {...props}
     />
-  )
+  );
 }
 
-export { Label }
+export { Label };

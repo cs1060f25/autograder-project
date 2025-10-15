@@ -11,7 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldX, Loader2 } from "lucide-react";
+import {
+  Security as ShieldXIcon,
+  Refresh as Loader2Icon,
+} from "@mui/icons-material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -40,14 +44,32 @@ export function RoleGuard({
 
   if (isChecking) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-600 mb-4" />
-            <p className="text-gray-600">Checking permissions...</p>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: "grey.50",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Card sx={{ width: "100%", maxWidth: 448 }}>
+          <CardContent
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              py: 4,
+            }}
+          >
+            <CircularProgress sx={{ mb: 2, color: "text.secondary" }} />
+            <Typography variant="body1" sx={{ color: "text.secondary" }}>
+              Checking permissions...
+            </Typography>
           </CardContent>
         </Card>
-      </div>
+      </Box>
     );
   }
 
@@ -57,35 +79,68 @@ export function RoleGuard({
     }
 
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-              <ShieldX className="h-8 w-8 text-red-600" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-gray-900">
+      <Box
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: "grey.50",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 2,
+        }}
+      >
+        <Card sx={{ width: "100%", maxWidth: 448 }}>
+          <CardHeader sx={{ textAlign: "center" }}>
+            <Box
+              sx={{
+                mx: "auto",
+                mb: 2,
+                height: 64,
+                width: 64,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "50%",
+                backgroundColor: "error.light",
+              }}
+            >
+              <ShieldXIcon sx={{ fontSize: 32, color: "error.main" }} />
+            </Box>
+            <CardTitle
+              sx={{
+                fontSize: "1.5rem",
+                fontWeight: "bold",
+                color: "text.primary",
+              }}
+            >
               Access Denied
             </CardTitle>
-            <CardDescription className="text-gray-600">
+            <CardDescription sx={{ color: "text.secondary" }}>
               You don't have permission to access this dashboard. Your current
               role is:{" "}
-              <span className="font-semibold capitalize">
+              <Box
+                component="span"
+                sx={{ fontWeight: 600, textTransform: "capitalize" }}
+              >
                 {userProfile.role}
-              </span>
+              </Box>
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-500 mb-4">
+          <CardContent>
+            <Box sx={{ textAlign: "center" }}>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.disabled", mb: 2 }}
+              >
                 You can only access dashboards that match your assigned role.
-              </p>
-              <Button onClick={() => router.push("/")} className="w-full">
+              </Typography>
+              <Button onClick={() => router.push("/")} sx={{ width: "100%" }}>
                 Go to Your Dashboard
               </Button>
-            </div>
+            </Box>
           </CardContent>
         </Card>
-      </div>
+      </Box>
     );
   }
 

@@ -7,43 +7,79 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireAuth, getDashboardPath } from "@/lib/user-utils";
-import { ShieldX, ArrowLeft } from "lucide-react";
+import {
+  Security as ShieldXIcon,
+  ArrowBack as ArrowLeftIcon,
+} from "@mui/icons-material";
 import Link from "next/link";
+import { Box, Typography } from "@mui/material";
 
 export default async function UnauthorizedPage() {
   const userProfile = await requireAuth();
   const dashboardPath = await getDashboardPath(userProfile.role);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-            <ShieldX className="h-8 w-8 text-red-600" />
-          </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "grey.50",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 2,
+      }}
+    >
+      <Card sx={{ width: "100%", maxWidth: 448 }}>
+        <CardHeader sx={{ textAlign: "center" }}>
+          <Box
+            sx={{
+              mx: "auto",
+              mb: 2,
+              height: 64,
+              width: 64,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              backgroundColor: "error.light",
+            }}
+          >
+            <ShieldXIcon sx={{ fontSize: 32, color: "error.main" }} />
+          </Box>
+          <CardTitle
+            sx={{
+              fontSize: "1.5rem",
+              fontWeight: "bold",
+              color: "text.primary",
+            }}
+          >
             Access Denied
           </CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardDescription sx={{ color: "text.secondary" }}>
             You don't have permission to access this dashboard. Your current
             role is:{" "}
-            <span className="font-semibold capitalize">{userProfile.role}</span>
+            <Box
+              component="span"
+              sx={{ fontWeight: 600, textTransform: "capitalize" }}
+            >
+              {userProfile.role}
+            </Box>
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-4">
+        <CardContent>
+          <Box sx={{ textAlign: "center" }}>
+            <Typography variant="body2" sx={{ color: "text.disabled", mb: 2 }}>
               You can only access dashboards that match your assigned role.
-            </p>
+            </Typography>
             <Link href={dashboardPath}>
-              <Button className="w-full">
-                <ArrowLeft className="h-4 w-4 mr-2" />
+              <Button sx={{ width: "100%" }}>
+                <ArrowLeftIcon sx={{ mr: 1, fontSize: 16 }} />
                 Go to Your Dashboard
               </Button>
             </Link>
-          </div>
+          </Box>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }

@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { Box, Container } from "@mui/material";
 
 type AuthLayoutProps = {
   panel: ReactNode;
@@ -7,15 +8,33 @@ type AuthLayoutProps = {
 
 export function AuthLayout({ panel, children }: AuthLayoutProps) {
   return (
-    <div className="min-h-svh bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-4rem)]">
-          <div className="hidden lg:block">{panel}</div>
-          <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-sm">{children}</div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%)",
+      }}
+    >
+      <Container maxWidth="lg" sx={{ px: 2, py: 4 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+            gap: 6,
+            alignItems: "center",
+            minHeight: "calc(100vh - 4rem)",
+          }}
+        >
+          <Box sx={{ display: { xs: "none", lg: "block" } }}>{panel}</Box>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: { xs: "center", lg: "flex-end" },
+            }}
+          >
+            <Box sx={{ width: "100%", maxWidth: 384 }}>{children}</Box>
+          </Box>
+        </Box>
+      </Container>
+    </Box>
   );
 }

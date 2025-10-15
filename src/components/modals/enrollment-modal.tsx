@@ -23,7 +23,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { enrollStudentAction, assignTAAction } from "@/lib/course-actions";
 import { Course } from "@/lib/data-utils";
-import { Users, UserCheck, Mail, UserPlus } from "lucide-react";
+import {
+  People as UsersIcon,
+  PersonAdd as UserCheckIcon,
+  Email as MailIcon,
+  PersonAddAlt as UserPlusIcon,
+} from "@mui/icons-material";
+import { Box, Typography, Chip, IconButton } from "@mui/material";
 
 interface EnrollmentModalProps {
   isOpen: boolean;
@@ -41,6 +47,7 @@ export function EnrollmentModal({
   const [success, setSuccess] = useState<string | null>(null);
   const [studentEmail, setStudentEmail] = useState("");
   const [taEmail, setTaEmail] = useState("");
+  const [activeTab, setActiveTab] = useState("students");
   const router = useRouter();
 
   const handleEnrollStudent = async (e: React.FormEvent) => {
@@ -107,19 +114,17 @@ export function EnrollmentModal({
   return (
     <Dialog
       open={isOpen}
-      onOpenChange={(open) => {
-        setIsOpen(open);
-        if (!open) {
-          clearMessages();
-          setStudentEmail("");
-          setTaEmail("");
-        }
+      onClose={() => {
+        setIsOpen(false);
+        clearMessages();
+        setStudentEmail("");
+        setTaEmail("");
       }}
     >
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+            <UsersIcon className="h-5 w-5" />
             Manage Course Enrollment
           </DialogTitle>
           <DialogDescription>
@@ -141,81 +146,114 @@ export function EnrollmentModal({
             </div>
           )}
 
-          <Tabs defaultValue="students" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="students" className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                Add Students
-              </TabsTrigger>
-              <TabsTrigger value="tas" className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4" />
-                Assign TAs
-              </TabsTrigger>
+          <Tabs
+            value={activeTab}
+            onValueChange={(newValue) => setActiveTab(newValue)}
+            sx={{ width: "100%" }}
+          >
+            <TabsList
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                width: "100%",
+              }}
+            >
+              <TabsTrigger
+                value="students"
+                label={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <UserPlusIcon sx={{ fontSize: 16 }} />
+                    Add Students
+                  </Box>
+                }
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              />
+              <TabsTrigger
+                value="tas"
+                label={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <UserCheckIcon sx={{ fontSize: 16 }} />
+                    Assign TAs
+                  </Box>
+                }
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              />
             </TabsList>
 
-            <TabsContent value="students" className="space-y-4">
-              <form onSubmit={handleEnrollStudent} className="space-y-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="student-email"
-                    className="flex items-center gap-2"
+            {activeTab === "students" && (
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
+              >
+                <form onSubmit={handleEnrollStudent} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="student-email"
+                      className="flex items-center gap-2"
+                    >
+                      <MailIcon className="h-4 w-4" />
+                      Student Email
+                    </Label>
+                    <Input
+                      id="student-email"
+                      type="email"
+                      placeholder="student@university.edu"
+                      value={studentEmail}
+                      onChange={(e) => setStudentEmail(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-sm text-gray-500">
+                      Enter the email address of the student you want to enroll.
+                    </p>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !studentEmail.trim()}
+                    className="w-full"
                   >
-                    <Mail className="h-4 w-4" />
-                    Student Email
-                  </Label>
-                  <Input
-                    id="student-email"
-                    type="email"
-                    placeholder="student@university.edu"
-                    value={studentEmail}
-                    onChange={(e) => setStudentEmail(e.target.value)}
-                    required
-                    disabled={isSubmitting}
-                  />
-                  <p className="text-sm text-gray-500">
-                    Enter the email address of the student you want to enroll.
-                  </p>
-                </div>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !studentEmail.trim()}
-                  className="w-full"
-                >
-                  {isSubmitting ? "Enrolling..." : "Enroll Student"}
-                </Button>
-              </form>
-            </TabsContent>
+                    {isSubmitting ? "Enrolling..." : "Enroll Student"}
+                  </Button>
+                </form>
+              </Box>
+            )}
 
-            <TabsContent value="tas" className="space-y-4">
-              <form onSubmit={handleAssignTA} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ta-email" className="flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    TA Email
-                  </Label>
-                  <Input
-                    id="ta-email"
-                    type="email"
-                    placeholder="ta@university.edu"
-                    value={taEmail}
-                    onChange={(e) => setTaEmail(e.target.value)}
-                    required
-                    disabled={isSubmitting}
-                  />
-                  <p className="text-sm text-gray-500">
-                    Enter the email address of the TA you want to assign to this
-                    course.
-                  </p>
-                </div>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !taEmail.trim()}
-                  className="w-full"
-                >
-                  {isSubmitting ? "Assigning..." : "Assign TA"}
-                </Button>
-              </form>
-            </TabsContent>
+            {activeTab === "tas" && (
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
+              >
+                <form onSubmit={handleAssignTA} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="ta-email"
+                      className="flex items-center gap-2"
+                    >
+                      <MailIcon className="h-4 w-4" />
+                      TA Email
+                    </Label>
+                    <Input
+                      id="ta-email"
+                      type="email"
+                      placeholder="ta@university.edu"
+                      value={taEmail}
+                      onChange={(e) => setTaEmail(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-sm text-gray-500">
+                      Enter the email address of the TA you want to assign to
+                      this course.
+                    </p>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !taEmail.trim()}
+                    className="w-full"
+                  >
+                    {isSubmitting ? "Assigning..." : "Assign TA"}
+                  </Button>
+                </form>
+              </Box>
+            )}
           </Tabs>
         </div>
 

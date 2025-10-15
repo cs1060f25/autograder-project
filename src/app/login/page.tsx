@@ -2,6 +2,7 @@ import { LoginForm } from "@/components/login-form";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { MarketingPanel } from "@/components/auth/marketing-panel";
 import { Alert } from "@/components/ui/alert";
+import { Box } from "@mui/material";
 
 interface PageProps {
   searchParams: {
@@ -13,7 +14,7 @@ interface PageProps {
 export default function Page({ searchParams }: PageProps) {
   return (
     <AuthLayout panel={<MarketingPanel />}>
-      <div className="space-y-4">
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {searchParams.error && (
           <Alert variant="destructive">{searchParams.error}</Alert>
         )}
@@ -21,7 +22,7 @@ export default function Page({ searchParams }: PageProps) {
           <Alert variant="success">{searchParams.message}</Alert>
         )}
         <LoginForm />
-      </div>
+      </Box>
     </AuthLayout>
   );
 }

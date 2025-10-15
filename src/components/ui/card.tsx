@@ -1,84 +1,108 @@
-import * as React from "react"
+import * as React from "react";
+import {
+  Card as MuiCard,
+  CardContent as MuiCardContent,
+  CardHeader as MuiCardHeader,
+  CardActions as MuiCardActions,
+  Typography,
+  Box,
+} from "@mui/material";
 
-import { cn } from "@/lib/utils"
+interface CardProps extends React.ComponentProps<typeof MuiCard> {}
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+function Card({ sx, ...props }: CardProps) {
   return (
-    <div
-      data-slot="card"
-      className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
-        className
-      )}
+    <MuiCard
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 3,
+        ...sx,
+      }}
       {...props}
     />
-  )
+  );
 }
 
-function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+interface CardHeaderProps extends React.ComponentProps<typeof MuiCardHeader> {}
+
+function CardHeader({ sx, ...props }: CardHeaderProps) {
   return (
-    <div
-      data-slot="card-header"
-      className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
-        className
-      )}
+    <MuiCardHeader
+      sx={{
+        ...sx,
+      }}
       {...props}
     />
-  )
+  );
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="card-title"
-      className={cn("leading-none font-semibold", className)}
-      {...props}
-    />
-  )
+interface CardTitleProps extends React.ComponentProps<typeof Typography> {}
+
+function CardTitle({ sx, ...props }: CardTitleProps) {
+  return <Typography variant="h6" {...props} />;
 }
 
-function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+interface CardDescriptionProps
+  extends React.ComponentProps<typeof Typography> {}
+
+function CardDescription({ sx, ...props }: CardDescriptionProps) {
   return (
-    <div
-      data-slot="card-description"
-      className={cn("text-muted-foreground text-sm", className)}
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{
+        ...sx,
+      }}
       {...props}
     />
-  )
+  );
 }
 
-function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+interface CardActionProps extends React.ComponentProps<typeof Box> {}
+
+function CardAction({ sx, ...props }: CardActionProps) {
   return (
-    <div
-      data-slot="card-action"
-      className={cn(
-        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
-        className
-      )}
+    <Box
+      sx={{
+        gridColumn: "2",
+        gridRow: "1 / -1",
+        alignSelf: "start",
+        justifySelf: "end",
+        ...sx,
+      }}
       {...props}
     />
-  )
+  );
 }
 
-function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+interface CardContentProps
+  extends React.ComponentProps<typeof MuiCardContent> {}
+
+function CardContent({ sx, ...props }: CardContentProps) {
   return (
-    <div
-      data-slot="card-content"
-      className={cn("px-6", className)}
+    <MuiCardContent
+      sx={{
+        ...sx,
+      }}
       {...props}
     />
-  )
+  );
 }
 
-function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+interface CardFooterProps extends React.ComponentProps<typeof MuiCardActions> {}
+
+function CardFooter({ sx, ...props }: CardFooterProps) {
   return (
-    <div
-      data-slot="card-footer"
-      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+    <MuiCardActions
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        ...sx,
+      }}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -89,4 +113,4 @@ export {
   CardAction,
   CardDescription,
   CardContent,
-}
+};

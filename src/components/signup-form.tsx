@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,13 +9,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUp } from "@/lib/auth-actions";
+import { Box, Typography, Link } from "@mui/material";
 
-export function SignupForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+export function SignupForm({ sx, ...props }: React.ComponentProps<typeof Box>) {
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: 3, ...sx }}
+      {...props}
+    >
       <Card>
         <CardHeader>
           <CardTitle>Create your account</CardTitle>
@@ -26,8 +26,8 @@ export function SignupForm({
         </CardHeader>
         <CardContent>
           <form action={signUp}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-3">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
                   id="firstName"
@@ -36,8 +36,8 @@ export function SignupForm({
                   placeholder="John"
                   required
                 />
-              </div>
-              <div className="grid gap-3">
+              </Box>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
                 <Label htmlFor="lastName">Last Name</Label>
                 <Input
                   id="lastName"
@@ -46,8 +46,8 @@ export function SignupForm({
                   placeholder="Doe"
                   required
                 />
-              </div>
-              <div className="grid gap-3">
+              </Box>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -56,8 +56,8 @@ export function SignupForm({
                   placeholder="john@college.harvard.edu"
                   required
                 />
-              </div>
-              <div className="grid gap-3">
+              </Box>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
@@ -66,8 +66,8 @@ export function SignupForm({
                   placeholder="Enter your password"
                   required
                 />
-              </div>
-              <div className="grid gap-3">
+              </Box>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
@@ -76,22 +76,24 @@ export function SignupForm({
                   placeholder="Confirm your password"
                   required
                 />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full">
+              </Box>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Button type="submit" sx={{ width: "100%" }}>
                   Create Account
                 </Button>
-              </div>
-            </div>
-            <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
-              <a href="/login" className="underline underline-offset-4">
-                Sign in
-              </a>
-            </div>
+              </Box>
+            </Box>
+            <Box sx={{ mt: 2, textAlign: "center" }}>
+              <Typography variant="body2">
+                Already have an account?{" "}
+                <Link href="/login" sx={{ textDecoration: "underline" }}>
+                  Sign in
+                </Link>
+              </Typography>
+            </Box>
           </form>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }

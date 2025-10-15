@@ -1,29 +1,34 @@
-import { cn } from "@/lib/utils";
+import { Alert as MuiAlert, AlertProps as MuiAlertProps } from "@mui/material";
 
-interface AlertProps {
+interface AlertProps extends Omit<MuiAlertProps, "severity" | "variant"> {
   variant?: "default" | "destructive" | "success";
-  children: React.ReactNode;
-  className?: string;
 }
 
 export function Alert({
   variant = "default",
   children,
-  className,
+  sx,
+  ...props
 }: AlertProps) {
+  const severity =
+    variant === "destructive"
+      ? "error"
+      : variant === "success"
+      ? "success"
+      : "info";
+
   return (
-    <div
-      className={cn(
-        "rounded-lg border p-4 text-sm",
-        {
-          "border-gray-200 bg-gray-50 text-gray-900": variant === "default",
-          "border-red-200 bg-red-50 text-red-900": variant === "destructive",
-          "border-green-200 bg-green-50 text-green-900": variant === "success",
-        },
-        className
-      )}
+    <MuiAlert
+      severity={severity}
+      sx={{
+        borderRadius: 1,
+        padding: 2,
+        fontSize: "0.875rem",
+        ...sx,
+      }}
+      {...props}
     >
       {children}
-    </div>
+    </MuiAlert>
   );
 }

@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,13 +9,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn } from "@/lib/auth-actions";
+import { Box, Typography, Link } from "@mui/material";
 
-export function LoginForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+export function LoginForm({ sx, ...props }: React.ComponentProps<typeof Box>) {
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: 3, ...sx }}
+      {...props}
+    >
       <Card>
         <CardHeader>
           <CardTitle>Login to your account</CardTitle>
@@ -26,8 +26,8 @@ export function LoginForm({
         </CardHeader>
         <CardContent>
           <form action={signIn}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-3">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -36,8 +36,8 @@ export function LoginForm({
                   placeholder="john@college.harvard.edu"
                   required
                 />
-              </div>
-              <div className="grid gap-3">
+              </Box>
+              <Box sx={{ display: "grid", gap: 1.5 }}>
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
@@ -46,22 +46,24 @@ export function LoginForm({
                   placeholder="Enter your password"
                   required
                 />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full">
+              </Box>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Button type="submit" sx={{ width: "100%" }}>
                   Login
                 </Button>
-              </div>
-            </div>
-            <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <a href="/signup" className="underline underline-offset-4">
-                Sign up
-              </a>
-            </div>
+              </Box>
+            </Box>
+            <Box sx={{ mt: 2, textAlign: "center" }}>
+              <Typography variant="body2">
+                Don&apos;t have an account?{" "}
+                <Link href="/signup" sx={{ textDecoration: "underline" }}>
+                  Sign up
+                </Link>
+              </Typography>
+            </Box>
           </form>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }

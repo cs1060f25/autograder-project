@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { Box, FormControl, InputLabel, MenuItem } from "@mui/material";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
@@ -72,28 +73,25 @@ export default async function OnboardingPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={completeOnboarding} className="space-y-6">
-            <div className="space-y-4">
-              <div className="grid gap-3">
-                <Label htmlFor="role">I am a...</Label>
-                <Select name="role" required>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instructor">Instructor</SelectItem>
-                    <SelectItem value="ta">Teaching Assistant</SelectItem>
-                    <SelectItem value="student">Student</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          <form action={completeOnboarding}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel>I am a...</InputLabel>
+                  <Select name="role" required label="I am a...">
+                    <MenuItem value="instructor">Instructor</MenuItem>
+                    <MenuItem value="ta">Teaching Assistant</MenuItem>
+                    <MenuItem value="student">Student</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
 
-            <div className="flex flex-col gap-3">
-              <Button type="submit" className="w-full">
-                Complete Setup
-              </Button>
-            </div>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Button type="submit" sx={{ width: "100%" }}>
+                  Complete Setup
+                </Button>
+              </Box>
+            </Box>
           </form>
         </CardContent>
       </Card>

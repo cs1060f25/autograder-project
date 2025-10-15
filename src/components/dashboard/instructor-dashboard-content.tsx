@@ -14,20 +14,21 @@ import {
 } from "@/lib/assignment-actions";
 import { Course, Assignment } from "@/lib/data-utils";
 import {
-  GraduationCap,
-  FileText,
-  Users,
-  BarChart3,
-  Plus,
-  Eye,
-  Edit,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  Trash2,
-  Play,
-  Square,
-} from "lucide-react";
+  School as GraduationCapIcon,
+  Description as FileTextIcon,
+  People as UsersIcon,
+  BarChart as BarChart3Icon,
+  Add as PlusIcon,
+  Visibility as EyeIcon,
+  Edit as EditIcon,
+  TrendingUp as TrendingUpIcon,
+  AccessTime as ClockIcon,
+  CheckCircle as CheckCircleIcon,
+  Delete as Trash2Icon,
+  PlayArrow as PlayIcon,
+  Stop as SquareIcon,
+} from "@mui/icons-material";
+import { Box, Typography, Chip, IconButton, Stack } from "@mui/material";
 
 interface InstructorDashboardContentProps {
   courses: (Course & {
@@ -77,13 +78,13 @@ export function InstructorDashboardContent({
   const getStatusIcon = (assignment: Assignment) => {
     switch (assignment.status) {
       case "graded":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircleIcon sx={{ fontSize: 20, color: "success.main" }} />;
       case "published":
-        return <Clock className="h-5 w-5 text-yellow-500" />;
+        return <ClockIcon sx={{ fontSize: 20, color: "warning.main" }} />;
       case "draft":
-        return <Clock className="h-5 w-5 text-gray-500" />;
+        return <ClockIcon sx={{ fontSize: 20, color: "text.disabled" }} />;
       default:
-        return <Clock className="h-5 w-5 text-gray-500" />;
+        return <ClockIcon sx={{ fontSize: 20, color: "text.disabled" }} />;
     }
   };
 
@@ -142,81 +143,144 @@ export function InstructorDashboardContent({
 
   return (
     <>
-      <div className="grid gap-6">
+      <Box sx={{ display: "grid", gap: 3 }}>
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(4, 1fr)",
+            },
+            gap: 2,
+          }}
+        >
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                pb: 1,
+              }}
+            >
+              <CardTitle sx={{ fontSize: "0.875rem", fontWeight: 500 }}>
                 Total Courses
               </CardTitle>
-              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              <GraduationCapIcon
+                sx={{ fontSize: 16, color: "text.secondary" }}
+              />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total_courses}</div>
+              <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+                {stats.total_courses}
+              </Typography>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                pb: 1,
+              }}
+            >
+              <CardTitle sx={{ fontSize: "0.875rem", fontWeight: 500 }}>
                 Total Students
               </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <UsersIcon sx={{ fontSize: 16, color: "text.secondary" }} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total_students}</div>
+              <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+                {stats.total_students}
+              </Typography>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                pb: 1,
+              }}
+            >
+              <CardTitle sx={{ fontSize: "0.875rem", fontWeight: 500 }}>
                 Active Assignments
               </CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <FileTextIcon sx={{ fontSize: 16, color: "text.secondary" }} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                 {stats.active_assignments}
-              </div>
+              </Typography>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+            <CardHeader
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                pb: 1,
+              }}
+            >
+              <CardTitle sx={{ fontSize: "0.875rem", fontWeight: 500 }}>
                 Average Grade
               </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUpIcon sx={{ fontSize: 16, color: "text.secondary" }} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                 {stats.average_grade ? formatGrade(stats.average_grade) : "N/A"}
-              </div>
+              </Typography>
             </CardContent>
           </Card>
-        </div>
+        </Box>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
+            gap: 3,
+          }}
+        >
           {/* Courses Overview */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Your Courses</CardTitle>
               <Button size="sm" onClick={handleCreateCourse}>
-                <Plus className="h-4 w-4 mr-2" />
+                <PlusIcon sx={{ mr: 1, fontSize: 16 }} />
                 New Course
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {courses.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <GraduationCap className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>
+                  <Box
+                    sx={{ textAlign: "center", py: 4, color: "text.secondary" }}
+                  >
+                    <GraduationCapIcon
+                      sx={{
+                        fontSize: 48,
+                        mx: "auto",
+                        mb: 2,
+                        color: "text.disabled",
+                      }}
+                    />
+                    <Typography>
                       No courses found. Create your first course to get started.
-                    </p>
-                  </div>
+                    </Typography>
+                  </Box>
                 ) : (
                   courses.map((course) => (
                     <div
@@ -242,7 +306,7 @@ export function InstructorDashboardContent({
                           variant="outline"
                           onClick={() => handleManageEnrollment(course)}
                         >
-                          <Users className="h-4 w-4 mr-2" />
+                          <UsersIcon sx={{ mr: 1, fontSize: 16 }} />
                           Manage
                         </Button>
                         <Button
@@ -250,16 +314,19 @@ export function InstructorDashboardContent({
                           variant="outline"
                           onClick={() => handleEditCourse(course)}
                         >
-                          <Edit className="h-4 w-4 mr-2" />
+                          <EditIcon sx={{ mr: 1, fontSize: 16 }} />
                           Edit
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteCourse(course.id)}
-                          className="text-red-600 hover:text-red-700"
+                          sx={{
+                            color: "error.main",
+                            "&:hover": { color: "error.dark" },
+                          }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2Icon sx={{ fontSize: 16 }} />
                         </Button>
                       </div>
                     </div>
@@ -274,20 +341,29 @@ export function InstructorDashboardContent({
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Assignments</CardTitle>
               <Button size="sm" onClick={handleCreateAssignment}>
-                <Plus className="h-4 w-4 mr-2" />
+                <PlusIcon sx={{ mr: 1, fontSize: 16 }} />
                 New Assignment
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {recentAssignments.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>
+                  <Box
+                    sx={{ textAlign: "center", py: 4, color: "text.secondary" }}
+                  >
+                    <FileTextIcon
+                      sx={{
+                        fontSize: 48,
+                        mx: "auto",
+                        mb: 2,
+                        color: "text.disabled",
+                      }}
+                    />
+                    <Typography>
                       No assignments found. Create your first assignment to get
                       started.
-                    </p>
-                  </div>
+                    </Typography>
+                  </Box>
                 ) : (
                   recentAssignments.map((assignment) => (
                     <div
@@ -324,7 +400,7 @@ export function InstructorDashboardContent({
                           variant="outline"
                           onClick={() => handleEditAssignment(assignment)}
                         >
-                          <Edit className="h-4 w-4 mr-2" />
+                          <EditIcon sx={{ mr: 1, fontSize: 16 }} />
                           Edit
                         </Button>
                         {assignment.status === "draft" && (
@@ -334,9 +410,12 @@ export function InstructorDashboardContent({
                             onClick={() =>
                               handlePublishAssignment(assignment.id)
                             }
-                            className="text-green-600 hover:text-green-700"
+                            sx={{
+                              color: "success.main",
+                              "&:hover": { color: "success.dark" },
+                            }}
                           >
-                            <Play className="h-4 w-4 mr-2" />
+                            <PlayIcon sx={{ mr: 1, fontSize: 16 }} />
                             Publish
                           </Button>
                         )}
@@ -345,9 +424,12 @@ export function InstructorDashboardContent({
                             size="sm"
                             variant="outline"
                             onClick={() => handleCloseAssignment(assignment.id)}
-                            className="text-orange-600 hover:text-orange-700"
+                            sx={{
+                              color: "warning.main",
+                              "&:hover": { color: "warning.dark" },
+                            }}
                           >
-                            <Square className="h-4 w-4 mr-2" />
+                            <SquareIcon sx={{ mr: 1, fontSize: 16 }} />
                             Close
                           </Button>
                         )}
@@ -355,9 +437,12 @@ export function InstructorDashboardContent({
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteAssignment(assignment.id)}
-                          className="text-red-600 hover:text-red-700"
+                          sx={{
+                            color: "error.main",
+                            "&:hover": { color: "error.dark" },
+                          }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2Icon sx={{ fontSize: 16 }} />
                         </Button>
                       </div>
                     </div>
@@ -366,8 +451,8 @@ export function InstructorDashboardContent({
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {/* Modals */}
       <CourseModal

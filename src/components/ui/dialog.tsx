@@ -1,135 +1,152 @@
 "use client";
 
 import * as React from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { XIcon } from "lucide-react";
+import {
+  Dialog as MuiDialog,
+  DialogTitle as MuiDialogTitle,
+  DialogContent as MuiDialogContent,
+  DialogActions as MuiDialogActions,
+  IconButton,
+  Typography,
+  Box,
+  DialogProps as MuiDialogProps,
+} from "@mui/material";
+import { Close as CloseIcon } from "@mui/icons-material";
 
-import { cn } from "@/lib/utils";
+interface DialogProps extends MuiDialogProps {}
 
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+function Dialog({ ...props }: DialogProps) {
+  return <MuiDialog {...props} />;
 }
 
-function DialogTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
-}
-
-function DialogPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
-}
-
-function DialogClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
-}
-
-function DialogOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-  return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
-      className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-        className
-      )}
-      {...props}
-    />
-  );
+interface DialogContentProps
+  extends React.ComponentProps<typeof MuiDialogContent> {
+  showCloseButton?: boolean;
+  allowWide?: boolean;
 }
 
 function DialogContent({
-  className,
   children,
   showCloseButton = true,
   allowWide = false,
+  sx,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean;
-  allowWide?: boolean;
-}) {
+}: DialogContentProps) {
   return (
-    <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200",
-          allowWide ? "" : "sm:max-w-lg",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </DialogPortal>
-  );
-}
-
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+    <MuiDialogContent
+      sx={{
+        maxWidth: allowWide ? "none" : { xs: "calc(100% - 2rem)", sm: 560 },
+        width: "100%",
+        ...sx,
+      }}
       {...props}
-    />
-  );
-}
-
-function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-footer"
-      className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className
+    >
+      {children}
+      {showCloseButton && (
+        <IconButton
+          aria-label="close"
+          onClick={() => {
+            // This will be handled by the parent Dialog's onClose
+            const event = new Event("close");
+            document.dispatchEvent(event);
+          }}
+          sx={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+            color: "grey[500]",
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
       )}
+    </MuiDialogContent>
+  );
+}
+
+interface DialogHeaderProps extends React.ComponentProps<typeof Box> {}
+
+function DialogHeader({ sx, ...props }: DialogHeaderProps) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        textAlign: { xs: "center", sm: "left" },
+        ...sx,
+      }}
       {...props}
     />
   );
 }
 
-function DialogTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+interface DialogFooterProps
+  extends React.ComponentProps<typeof MuiDialogActions> {}
+
+function DialogFooter({ sx, ...props }: DialogFooterProps) {
   return (
-    <DialogPrimitive.Title
-      data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+    <MuiDialogActions
+      sx={{
+        display: "flex",
+        flexDirection: { xs: "column-reverse", sm: "row" },
+        gap: 1,
+        justifyContent: { sm: "flex-end" },
+        ...sx,
+      }}
       {...props}
     />
   );
 }
 
-function DialogDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+interface DialogTitleProps
+  extends React.ComponentProps<typeof MuiDialogTitle> {}
+
+function DialogTitle({ sx, ...props }: DialogTitleProps) {
   return (
-    <DialogPrimitive.Description
-      data-slot="dialog-description"
-      className={cn("text-muted-foreground text-sm", className)}
+    <MuiDialogTitle
+      sx={{
+        fontSize: "1.125rem",
+        lineHeight: 1,
+        fontWeight: 600,
+        ...sx,
+      }}
       {...props}
     />
   );
+}
+
+interface DialogDescriptionProps
+  extends React.ComponentProps<typeof Typography> {}
+
+function DialogDescription({ sx, ...props }: DialogDescriptionProps) {
+  return (
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{
+        ...sx,
+      }}
+      {...props}
+    />
+  );
+}
+
+// These are kept for compatibility but are no-ops in MUI
+function DialogTrigger({ children, ...props }: React.ComponentProps<"div">) {
+  return <div {...props}>{children}</div>;
+}
+
+function DialogClose({ children, ...props }: React.ComponentProps<"div">) {
+  return <div {...props}>{children}</div>;
+}
+
+function DialogOverlay({ ...props }: React.ComponentProps<"div">) {
+  return <div {...props} />;
+}
+
+function DialogPortal({ children, ...props }: React.ComponentProps<"div">) {
+  return <div {...props}>{children}</div>;
 }
 
 export {

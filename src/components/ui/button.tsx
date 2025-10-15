@@ -1,58 +1,88 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import {
+  Button as MuiButton,
+  ButtonProps as MuiButtonProps,
+  SxProps,
+  Theme,
+} from "@mui/material";
 
-import { cn } from "@/lib/utils"
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot : "button"
-
-  return (
-    <Comp
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
+interface ButtonProps extends Omit<MuiButtonProps, "variant" | "size" | "sx"> {
+  variant?:
+    | "default"
+    | "destructive"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link";
+  size?: "default" | "sm" | "lg" | "icon";
+  asChild?: boolean;
+  sx?: SxProps<Theme>;
 }
 
-export { Button, buttonVariants }
+function Button({
+  variant = "default",
+  size = "default",
+  asChild = false,
+  sx,
+  ...props
+}: ButtonProps) {
+  const muiVariant =
+    variant === "default"
+      ? "contained"
+      : variant === "destructive"
+      ? "contained"
+      : variant === "outline"
+      ? "outlined"
+      : variant === "secondary"
+      ? "contained"
+      : variant === "ghost"
+      ? "text"
+      : variant === "link"
+      ? "text"
+      : "contained";
+
+  const muiSize = size === "sm" ? "small" : size === "lg" ? "large" : "medium";
+
+  const buttonSx: SxProps<Theme> = {
+    ...(variant === "destructive" && {
+      backgroundColor: "error.main",
+      "&:hover": {
+        backgroundColor: "error.dark",
+      },
+    }),
+    ...(variant === "secondary" && {
+      backgroundColor: "secondary.main",
+      color: "secondary.contrastText",
+      "&:hover": {
+        backgroundColor: "secondary.dark",
+      },
+    }),
+    ...(variant === "ghost" && {
+      backgroundColor: "transparent",
+      "&:hover": {
+        backgroundColor: "action.hover",
+      },
+    }),
+    ...(variant === "link" && {
+      textDecoration: "underline",
+      textTransform: "none",
+      "&:hover": {
+        textDecoration: "underline",
+        backgroundColor: "transparent",
+      },
+    }),
+    ...(size === "icon" && {
+      minWidth: "auto",
+      width: 36,
+      height: 36,
+      padding: 0,
+    }),
+    ...sx,
+  };
+
+  return (
+    <MuiButton variant={muiVariant} size={muiSize} sx={buttonSx} {...props} />
+  );
+}
+
+export { Button };

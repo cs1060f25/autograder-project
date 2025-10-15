@@ -3,7 +3,25 @@
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth-actions";
 import { UserProfile, UserRole } from "@/lib/user-utils";
-import { BookOpen, GraduationCap, Users, LogOut, User } from "lucide-react";
+import {
+  MenuBook as BookOpenIcon,
+  School as GraduationCapIcon,
+  People as UsersIcon,
+  Logout as LogOutIcon,
+  Person as UserIcon,
+} from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
 import { RoleGuard } from "./role-guard";
 
 interface DashboardLayoutProps {
@@ -35,51 +53,69 @@ export function DashboardLayout({
   };
 
   const content = (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <h1 className="text-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent font-bold">
-                  AI Grading Platform
-                </h1>
-              </div>
-            </div>
+    <Box sx={{ minHeight: "100vh", backgroundColor: "grey.50" }}>
+      <AppBar
+        position="static"
+        sx={{ backgroundColor: "background.paper", color: "text.primary" }}
+      >
+        <Toolbar sx={{ justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                background: "linear-gradient(45deg, #9333ea, #e11d48, #ea580c)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                fontWeight: "bold",
+              }}
+            >
+              AI Grading Platform
+            </Typography>
+          </Box>
 
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">
-                  {userProfile.first_name} {userProfile.last_name}
-                </span>
-                <span className="ml-2 text-gray-400">
-                  ({getRoleDisplayName(userProfile.role)})
-                </span>
-              </div>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              <Box component="span" sx={{ fontWeight: 500 }}>
+                {userProfile.first_name} {userProfile.last_name}
+              </Box>
+              <Box component="span" sx={{ ml: 1, color: "text.disabled" }}>
+                ({getRoleDisplayName(userProfile.role)})
+              </Box>
+            </Typography>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => signOut()}
-                className="flex items-center space-x-2"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => signOut()}
+              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+            >
+              <LogOutIcon sx={{ fontSize: 16 }} />
+              Sign Out
+            </Button>
+          </Box>
+        </Toolbar>
+      </AppBar>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">{title}</h2>
-          <p className="mt-2 text-lg text-gray-600">{description}</p>
-        </div>
+      <Box
+        sx={{ maxWidth: "7xl", mx: "auto", px: { xs: 2, sm: 3, lg: 4 }, py: 4 }}
+      >
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{ fontWeight: "bold", color: "text.primary" }}
+          >
+            {title}
+          </Typography>
+          <Typography variant="h6" sx={{ mt: 1, color: "text.secondary" }}>
+            {description}
+          </Typography>
+        </Box>
 
         {children}
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 
   // If no required role is specified, render content directly

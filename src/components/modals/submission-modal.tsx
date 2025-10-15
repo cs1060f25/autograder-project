@@ -19,7 +19,15 @@ import {
 } from "@/lib/submission-actions";
 import { Rubric, RubricCriterion, RubricScores } from "@/lib/data-utils";
 import { getRubricByAssignment, getRubricScores } from "@/lib/rubric-actions";
-import { Upload, X, FileText, Send, Star, CheckCircle } from "lucide-react";
+import {
+  Upload as UploadIcon,
+  Close as XIcon,
+  Description as FileTextIcon,
+  Send as SendIcon,
+  Star as StarIcon,
+  CheckCircle as CheckCircleIcon,
+} from "@mui/icons-material";
+import { Box, Typography, Chip, IconButton } from "@mui/material";
 
 interface SubmissionModalProps {
   isOpen: boolean;
@@ -118,7 +126,7 @@ export function SubmissionModal({
     }
   };
 
-  const handleFileUpload = async (
+  const handleFileUploadIcon = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
@@ -147,10 +155,10 @@ export function SubmissionModal({
         setAttachments((prev) => [...prev, result.fileAttachment!]);
         setSuccess("File uploaded successfully");
       } else {
-        setError(result.error || "Upload failed");
+        setError(result.error || "UploadIcon failed");
       }
     } catch (err) {
-      setError("Upload failed. Please try again.");
+      setError("UploadIcon failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -212,7 +220,7 @@ export function SubmissionModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onClose={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Submit Assignment: {assignmentTitle}</DialogTitle>
@@ -237,7 +245,7 @@ export function SubmissionModal({
             existingSubmission.grade !== undefined && (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
                   <h4 className="font-medium text-green-800">
                     Assignment Graded
                   </h4>
@@ -303,7 +311,7 @@ export function SubmissionModal({
           {existingSubmission?.status === "graded" && rubricScores && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
-                <Star className="h-5 w-5 text-blue-600" />
+                <StarIcon className="h-5 w-5 text-blue-600" />
                 <h4 className="font-medium text-blue-800">Rubric Breakdown</h4>
               </div>
               <div className="space-y-2">
@@ -364,18 +372,18 @@ export function SubmissionModal({
             />
           </div>
 
-          {/* File Upload */}
+          {/* File UploadIcon */}
           <div className="space-y-2">
-            <Label>Upload PDF Files</Label>
+            <Label>UploadIcon PDF Files</Label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf"
-                onChange={handleFileUpload}
+                onChange={handleFileUploadIcon}
                 className="hidden"
               />
-              <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <UploadIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
               <p className="text-sm text-gray-600 mb-2">
                 Click to upload PDF files (max 10MB each)
               </p>
@@ -390,10 +398,10 @@ export function SubmissionModal({
             </div>
           </div>
 
-          {/* Uploaded Files */}
+          {/* UploadIconed Files */}
           {attachments.length > 0 && (
             <div className="space-y-2">
-              <Label>Uploaded Files</Label>
+              <Label>UploadIconed Files</Label>
               <div className="space-y-2">
                 {attachments.map((file, index) => (
                   <div
@@ -401,7 +409,7 @@ export function SubmissionModal({
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
                     <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-red-500" />
+                      <FileTextIcon className="h-4 w-4 text-red-500" />
                       <div>
                         <p className="text-sm font-medium">{file.name}</p>
                         <p className="text-xs text-gray-500">
@@ -416,7 +424,7 @@ export function SubmissionModal({
                       onClick={() => handleRemoveFile(index)}
                       className="text-red-500 hover:text-red-700"
                     >
-                      <X className="h-4 w-4" />
+                      <XIcon className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
@@ -457,7 +465,7 @@ export function SubmissionModal({
                 (!content.trim() && attachments.length === 0)
               }
             >
-              <Send className="h-4 w-4 mr-2" />
+              <SendIcon className="h-4 w-4 mr-2" />
               {isSubmitting ? "Submitting..." : "Submit"}
             </Button>
           </div>

@@ -25,7 +25,20 @@ import {
   updateAssignmentAction,
 } from "@/lib/assignment-actions";
 import { Assignment, Course, RubricCriterion } from "@/lib/data-utils";
-import { Plus, Trash2, FileText } from "lucide-react";
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Description as DescriptionIcon,
+} from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  TextField,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Alert,
+} from "@mui/material";
 
 interface AssignmentModalProps {
   isOpen: boolean;
@@ -138,8 +151,13 @@ export function AssignmentModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+    <Dialog
+      open={isOpen}
+      onClose={() => setIsOpen(false)}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogContent sx={{ maxHeight: "90vh", overflow: "auto" }}>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -158,13 +176,9 @@ export function AssignmentModal({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
-            <div className="grid gap-2">
+          <Box sx={{ display: "grid", gap: 2, py: 2 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <Box sx={{ display: "grid", gap: 1 }}>
               <Label htmlFor="title">Assignment Title</Label>
               <Input
                 id="title"
@@ -173,9 +187,9 @@ export function AssignmentModal({
                 defaultValue={assignment?.title || ""}
                 required
               />
-            </div>
+            </Box>
 
-            <div className="grid gap-2">
+            <Box sx={{ display: "grid", gap: 1 }}>
               <Label htmlFor="description">Description</Label>
               <Input
                 id="description"
@@ -183,62 +197,59 @@ export function AssignmentModal({
                 placeholder="Brief description of the assignment"
                 defaultValue={assignment?.description || ""}
               />
-            </div>
+            </Box>
 
-            <div className="grid gap-2">
-              <Label htmlFor="course_id">Course</Label>
-              <Select
-                name="course_id"
-                defaultValue={assignment?.course_id || ""}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((course) => (
-                    <SelectItem key={course.id} value={course.id}>
-                      {course.code} - {course.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="assignment_type">Assignment Type</Label>
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <FormControl fullWidth>
+                <InputLabel>Course</InputLabel>
                 <Select
-                  name="assignment_type"
-                  defaultValue={assignment?.assignment_type || "homework"}
+                  name="course_id"
+                  defaultValue={assignment?.course_id || ""}
+                  label="Course"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="homework">Homework</SelectItem>
-                    <SelectItem value="quiz">Quiz</SelectItem>
-                    <SelectItem value="exam">Exam</SelectItem>
-                  </SelectContent>
+                  {courses.map((course) => (
+                    <MenuItem key={course.id} value={course.id}>
+                      {course.code} - {course.name}
+                    </MenuItem>
+                  ))}
                 </Select>
-              </div>
+              </FormControl>
+            </Box>
 
-              <div className="grid gap-2">
+            <Box
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
+            >
+              <Box sx={{ display: "grid", gap: 1 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Assignment Type</InputLabel>
+                  <Select
+                    name="assignment_type"
+                    defaultValue={assignment?.assignment_type || "homework"}
+                    label="Assignment Type"
+                  >
+                    <MenuItem value="homework">Homework</MenuItem>
+                    <MenuItem value="quiz">Quiz</MenuItem>
+                    <MenuItem value="exam">Exam</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <Box sx={{ display: "grid", gap: 1 }}>
                 <Label htmlFor="max_points">Max Points</Label>
                 <Input
                   id="max_points"
                   name="max_points"
                   type="number"
-                  min="1"
-                  max="1000"
                   placeholder="100"
                   value={maxPoints}
                   onChange={(e) => setMaxPoints(parseInt(e.target.value) || 0)}
                   required
+                  inputProps={{ min: 1, max: 1000 }}
                 />
-              </div>
-            </div>
+              </Box>
+            </Box>
 
-            <div className="grid gap-2">
+            <Box sx={{ display: "grid", gap: 1 }}>
               <Label htmlFor="due_date">Due Date</Label>
               <Input
                 id="due_date"
@@ -251,45 +262,59 @@ export function AssignmentModal({
                 }
                 required
               />
-            </div>
+            </Box>
 
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                name="status"
-                defaultValue={assignment?.status || "draft"}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  name="status"
+                  defaultValue={assignment?.status || "draft"}
+                  label="Status"
+                >
+                  <MenuItem value="draft">Draft</MenuItem>
+                  <MenuItem value="published">Published</MenuItem>
+                  <MenuItem value="closed">Closed</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
 
-            <div className="grid gap-2">
+            <Box sx={{ display: "grid", gap: 1 }}>
               <Label htmlFor="instructions">Instructions</Label>
-              <textarea
+              <TextField
                 id="instructions"
                 name="instructions"
-                className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                multiline
+                rows={4}
                 placeholder="Detailed instructions for the assignment..."
                 defaultValue={assignment?.instructions || ""}
+                fullWidth
               />
-            </div>
+            </Box>
 
             {/* Rubric Section */}
-            <div className="grid gap-4 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  <Label className="text-base font-medium">
+            <Box
+              sx={{
+                display: "grid",
+                gap: 2,
+                borderTop: 1,
+                borderColor: "divider",
+                pt: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <DescriptionIcon sx={{ fontSize: 20 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
                     Grading Rubric
-                  </Label>
-                </div>
+                  </Typography>
+                </Box>
                 <Button
                   type="button"
                   variant="outline"
@@ -298,34 +323,50 @@ export function AssignmentModal({
                 >
                   {showRubric ? "Remove Rubric" : "Add Rubric"}
                 </Button>
-              </div>
+              </Box>
 
               {showRubric && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
                     Define criteria for grading this assignment. The total
                     points must equal the assignment max points.
-                  </p>
+                  </Typography>
 
                   {rubricCriteria.map((criterion, index) => (
-                    <div
+                    <Box
                       key={criterion.id}
-                      className="p-4 border rounded-lg space-y-3"
+                      sx={{
+                        p: 2,
+                        border: 1,
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                      }}
                     >
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Criterion {index + 1}</h4>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Typography variant="subtitle2">
+                          Criterion {index + 1}
+                        </Typography>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeCriterion(criterion.id)}
-                          className="text-red-600 hover:text-red-700"
+                          sx={{ color: "error.main", minWidth: "auto", p: 1 }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <DeleteIcon sx={{ fontSize: 20 }} />
                         </Button>
-                      </div>
+                      </Box>
 
-                      <div className="grid gap-2">
+                      <Box sx={{ display: "grid", gap: 1 }}>
                         <Label htmlFor={`criterion-name-${criterion.id}`}>
                           Name
                         </Label>
@@ -342,15 +383,15 @@ export function AssignmentModal({
                           placeholder="e.g., Code Quality"
                           required
                         />
-                      </div>
+                      </Box>
 
-                      <div className="grid gap-2">
+                      <Box sx={{ display: "grid", gap: 1 }}>
                         <Label
                           htmlFor={`criterion-description-${criterion.id}`}
                         >
                           Description
                         </Label>
-                        <textarea
+                        <TextField
                           id={`criterion-description-${criterion.id}`}
                           value={criterion.description}
                           onChange={(e) =>
@@ -361,19 +402,20 @@ export function AssignmentModal({
                             )
                           }
                           placeholder="Describe what this criterion evaluates..."
-                          className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          multiline
+                          rows={3}
+                          fullWidth
                           required
                         />
-                      </div>
+                      </Box>
 
-                      <div className="grid gap-2">
+                      <Box sx={{ display: "grid", gap: 1 }}>
                         <Label htmlFor={`criterion-points-${criterion.id}`}>
                           Max Points
                         </Label>
                         <Input
                           id={`criterion-points-${criterion.id}`}
                           type="number"
-                          min="1"
                           value={criterion.max_points}
                           onChange={(e) =>
                             updateCriterion(
@@ -384,46 +426,68 @@ export function AssignmentModal({
                           }
                           placeholder="10"
                           required
+                          inputProps={{ min: 1 }}
                         />
-                      </div>
-                    </div>
+                      </Box>
+                    </Box>
                   ))}
 
                   <Button
                     type="button"
                     variant="outline"
                     onClick={addCriterion}
-                    className="w-full"
+                    sx={{ width: "100%" }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <AddIcon sx={{ mr: 1, fontSize: 20 }} />
                     Add Criterion
                   </Button>
 
                   {rubricCriteria.length > 0 && (
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Total Points:</span>
-                        <span
-                          className={`font-bold ${
-                            getTotalPoints() === maxPoints
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
+                    <Box
+                      sx={{
+                        p: 2,
+                        backgroundColor: "info.light",
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Typography variant="subtitle2">
+                          Total Points:
+                        </Typography>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: "bold",
+                            color:
+                              getTotalPoints() === maxPoints
+                                ? "success.main"
+                                : "error.main",
+                          }}
                         >
                           {getTotalPoints()}
-                        </span>
-                      </div>
+                        </Typography>
+                      </Box>
                       {getTotalPoints() !== maxPoints && (
-                        <p className="text-sm text-red-600 mt-1">
+                        <Typography
+                          variant="body2"
+                          color="error.main"
+                          sx={{ mt: 0.5 }}
+                        >
                           Must equal assignment max points ({maxPoints})
-                        </p>
+                        </Typography>
                       )}
-                    </div>
+                    </Box>
                   )}
-                </div>
+                </Box>
               )}
-            </div>
-          </div>
+            </Box>
+          </Box>
 
           <DialogFooter>
             <Button

@@ -25,22 +25,30 @@ import {
   AIGradeData,
 } from "@/lib/ai-grading-actions";
 import {
-  FileText,
-  Download,
-  Star,
-  MessageSquare,
-  User,
-  Calendar,
-  Sparkles,
-  Plus,
-  Trash2,
-  Edit3,
-  Save,
-  RefreshCw,
-  Bot,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+  Description as FileTextIcon,
+  Download as DownloadIcon,
+  Star as StarIcon,
+  Message as MessageSquareIcon,
+  Person as UserIcon,
+  CalendarToday as CalendarIcon,
+  AutoAwesome as SparklesIcon,
+  Add as PlusIcon,
+  Delete as Trash2Icon,
+  Edit as Edit3Icon,
+  Save as SaveIcon,
+  Refresh as RefreshCwIcon,
+  SmartToy as BotIcon,
+  ExpandMore as ChevronDownIcon,
+  ExpandLess as ChevronUpIcon,
+} from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  Chip,
+  IconButton,
+  Collapse,
+  Alert,
+} from "@mui/material";
 
 interface GradingModalProps {
   isOpen: boolean;
@@ -266,7 +274,7 @@ export function GradingModal({
     }
   };
 
-  const handleFileDownload = (file: FileAttachment) => {
+  const handleFileDownloadIcon = (file: FileAttachment) => {
     const link = document.createElement("a");
     link.href = file.url;
     link.download = file.name;
@@ -330,7 +338,7 @@ export function GradingModal({
     return Object.values(rubricScores).reduce((sum, score) => sum + score, 0);
   };
 
-  const handleSaveRubricChanges = async () => {
+  const handleSaveIconRubricChanges = async () => {
     if (!rubric) return;
 
     setGrading(true);
@@ -378,7 +386,7 @@ export function GradingModal({
 
   if (!submission && loading) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onClose={onClose}>
         <DialogContent allowWide className="max-w-[98vw] max-h-[95vh] w-[98vw]">
           <DialogHeader>
             <DialogTitle>Loading Submission</DialogTitle>
@@ -396,7 +404,7 @@ export function GradingModal({
 
   if (!submission) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onClose={onClose}>
         <DialogContent allowWide className="max-w-[98vw] max-h-[95vh] w-[98vw]">
           <DialogHeader>
             <DialogTitle>Error Loading Submission</DialogTitle>
@@ -413,14 +421,14 @@ export function GradingModal({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onClose={onClose}>
       <DialogContent
         allowWide
         className="max-w-[98vw] max-h-[95vh] w-[98vw] overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5" />
+            <StarIcon className="h-5 w-5" />
             Grade Assignment: {submission.assignment.title}
           </DialogTitle>
           <DialogDescription>
@@ -437,12 +445,12 @@ export function GradingModal({
                 onClick={() => setShowAISuggestions(!showAISuggestions)}
                 className="flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-900"
               >
-                <Bot className="h-4 w-4" />
+                <BotIcon className="h-4 w-4" />
                 AI Suggestions
                 {showAISuggestions ? (
-                  <ChevronUp className="h-4 w-4" />
+                  <ChevronUpIcon className="h-4 w-4" />
                 ) : (
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDownIcon className="h-4 w-4" />
                 )}
               </button>
               <Button
@@ -453,7 +461,7 @@ export function GradingModal({
                 disabled={regeneratingAI}
                 className="text-blue-600 border-blue-200 hover:bg-blue-50"
               >
-                <RefreshCw
+                <RefreshCwIcon
                   className={`h-4 w-4 mr-2 ${
                     regeneratingAI ? "animate-spin" : ""
                   }`}
@@ -465,7 +473,7 @@ export function GradingModal({
             {showAISuggestions && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-blue-800">
-                  <Sparkles className="h-4 w-4" />
+                  <SparklesIcon className="h-4 w-4" />
                   <span>AI-Generated Scores and Feedback</span>
                   {aiGradedAt && (
                     <span className="text-xs text-blue-600 ml-auto">
@@ -505,7 +513,7 @@ export function GradingModal({
                 {aiGradeData.overallFeedback && (
                   <div className="bg-white rounded-lg p-3 border border-blue-100">
                     <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
+                      <MessageSquareIcon className="h-4 w-4" />
                       Overall AI Feedback
                     </h4>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -544,7 +552,7 @@ export function GradingModal({
         {aiGradingStatus === "failed" && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <Bot className="h-4 w-4 text-red-600" />
+              <BotIcon className="h-4 w-4 text-red-600" />
               <span className="text-sm text-red-800">
                 AI grading failed. Please grade manually.
               </span>
@@ -558,7 +566,7 @@ export function GradingModal({
             {/* Student Info */}
             <div className="p-4 bg-gray-50 rounded-lg">
               <h3 className="font-medium mb-2 flex items-center gap-2">
-                <User className="h-4 w-4" />
+                <UserIcon className="h-4 w-4" />
                 Student Information
               </h3>
               <p className="text-sm">
@@ -568,7 +576,7 @@ export function GradingModal({
                 {submission.student.email}
               </p>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                <Calendar className="h-3 w-3" />
+                <CalendarIcon className="h-3 w-3" />
                 Submitted:{" "}
                 {submission.submitted_at
                   ? new Date(submission.submitted_at).toLocaleDateString()
@@ -602,7 +610,7 @@ export function GradingModal({
                       onClick={() => setSelectedFile(file)}
                     >
                       <div className="flex items-center space-x-2">
-                        <FileText className="h-4 w-4 text-red-500" />
+                        <FileTextIcon className="h-4 w-4 text-red-500" />
                         <div>
                           <p className="text-sm font-medium">{file.name}</p>
                           <p className="text-xs text-gray-500">
@@ -616,10 +624,10 @@ export function GradingModal({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleFileDownload(file);
+                          handleFileDownloadIcon(file);
                         }}
                       >
-                        <Download className="h-4 w-4" />
+                        <DownloadIcon className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
@@ -680,7 +688,7 @@ export function GradingModal({
                       size="sm"
                       onClick={() => setEditingRubric(!editingRubric)}
                     >
-                      <Edit3 className="h-4 w-4 mr-2" />
+                      <Edit3Icon className="h-4 w-4 mr-2" />
                       {editingRubric ? "Cancel Edit" : "Edit Rubric"}
                     </Button>
                   </div>
@@ -709,7 +717,7 @@ export function GradingModal({
                               onClick={() => removeCriterion(criterion.id)}
                               className="text-red-600 hover:text-red-700"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2Icon className="h-4 w-4" />
                             </Button>
                           </div>
 
@@ -748,7 +756,6 @@ export function GradingModal({
                             <Label>Max Points</Label>
                             <Input
                               type="number"
-                              min="1"
                               value={criterion.max_points}
                               onChange={(e) =>
                                 updateCriterion(
@@ -758,6 +765,7 @@ export function GradingModal({
                                 )
                               }
                               placeholder="10"
+                              inputProps={{ min: 1 }}
                             />
                           </div>
                         </div>
@@ -769,19 +777,19 @@ export function GradingModal({
                         onClick={addCriterion}
                         className="w-full"
                       >
-                        <Plus className="h-4 w-4 mr-2" />
+                        <PlusIcon className="h-4 w-4 mr-2" />
                         Add Criterion
                       </Button>
 
                       <div className="flex gap-2">
                         <Button
                           type="button"
-                          onClick={handleSaveRubricChanges}
+                          onClick={handleSaveIconRubricChanges}
                           disabled={grading}
                           className="flex-1"
                         >
-                          <Save className="h-4 w-4 mr-2" />
-                          Save Rubric Changes
+                          <SaveIcon className="h-4 w-4 mr-2" />
+                          SaveIcon Rubric Changes
                         </Button>
                         <Button
                           type="button"
@@ -818,8 +826,6 @@ export function GradingModal({
                             <Input
                               id={`score-${criterion.id}`}
                               type="number"
-                              min="0"
-                              max={criterion.max_points}
                               value={rubricScores[criterion.id] || 0}
                               onChange={(e) =>
                                 updateRubricScore(
@@ -827,7 +833,8 @@ export function GradingModal({
                                   parseInt(e.target.value) || 0
                                 )
                               }
-                              className="w-20"
+                              sx={{ width: 80 }}
+                              inputProps={{ min: 0, max: criterion.max_points }}
                             />
                             <span className="text-sm text-gray-500">
                               / {criterion.max_points}
@@ -856,9 +863,6 @@ export function GradingModal({
                     <Input
                       id="grade"
                       type="number"
-                      min="0"
-                      max="100"
-                      step="1"
                       value={grade}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -868,6 +872,7 @@ export function GradingModal({
                         }
                       }}
                       placeholder="Enter grade (0-100)"
+                      inputProps={{ min: 0, max: 100, step: 1 }}
                     />
                   </div>
                 </div>
@@ -875,7 +880,7 @@ export function GradingModal({
 
               <div className="space-y-2">
                 <Label htmlFor="feedback" className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
+                  <MessageSquareIcon className="h-4 w-4" />
                   Feedback (Optional)
                 </Label>
                 <textarea
