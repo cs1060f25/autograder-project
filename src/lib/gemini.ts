@@ -1,4 +1,4 @@
-const API_KEY = "AIzaSyC9ms2tf0PNl7Ui9e7zOwQ9XW_euGYMm3c"
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${API_KEY}`
 
 export async function simplifyFeedback(complexFeedback: string): Promise<string> {
