@@ -6,9 +6,18 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  // Check if environment variables are set
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("Missing Supabase environment variables");
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
@@ -29,44 +38,47 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to login
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/signup") &&
-    !request.nextUrl.pathname.startsWith("/auth") &&
-    !request.nextUrl.pathname.startsWith("/onboarding") &&
-    !request.nextUrl.pathname.startsWith("/unauthorized")
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  // Check if authenticated user needs to complete onboarding
-  if (user && !request.nextUrl.pathname.startsWith("/onboarding")) {
-    try {
-      const { data: userData } = await supabase
-        .from("users")
-        .select("onboarding_completed")
-        .eq("id", user.id)
-        .single();
-
-      if (userData && !userData.onboarding_completed) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/onboarding";
-        return NextResponse.redirect(url);
-      }
-    } catch (error) {
-      // If user doesn't exist in users table, redirect to login
+    // Redirect unauthenticated users to login
+    if (
+      !user &&
+      !request.nextUrl.pathname.startsWith("/login") &&
+      !request.nextUrl.pathname.startsWith("/signup") &&
+      !request.nextUrl.pathname.startsWith("/auth") &&
+      !request.nextUrl.pathname.startsWith("/onboarding") &&
+      !request.nextUrl.pathname.startsWith("/unauthorized")
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
     }
+
+    // Check if authenticated user needs to complete onboarding
+    if (user && !request.nextUrl.pathname.startsWith("/onboarding")) {
+      try {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("onboarding_completed")
+          .eq("id", user.id)
+          .single();
+
+        if (userData && !userData.onboarding_completed) {
+          const url = request.nextUrl.clone();
+          url.pathname = "/onboarding";
+          return NextResponse.redirect(url);
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+        // Continue without redirecting if there's an error
+      }
+    }
+  } catch (error) {
+    console.error("Error in middleware:", error);
   }
+  
   return supabaseResponse;
 }
