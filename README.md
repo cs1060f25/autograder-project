@@ -3,68 +3,111 @@ AI-assisted platform to accelerate grading and increase accuracy.
 
 Google Drive: https://drive.google.com/drive/folders/1DzP-ny6q2N0FCIQIv-6ZH8mwM9E5JaQR?usp=sharing
 
-## Testing this Project:
+## Tech Stack
+- **Framework**: Next.js 15.5.3
+- **Database**: Supabase
+- **AI**: Google Gemini API
+- **UI**: React 19, Tailwind CSS, Radix UI, shadcn/ui
+- **Deployment**: Vercel
 
-In order to see the full functionality of this project, you will need to create three seperate accounts (using three different email addresses). This will allow you to test the flows of the following users:
+## Getting Started
 
-- Instructor
-- TA
-- Student
+### Prerequisites
+- Node.js 20+
+- npm or yarn
+- Supabase account
+- Google Gemini API key
 
-### Instructor
+### Local Development
 
-Has the ability to create a course, add a TA to the course, add a student to the course, and create assignments for the course. You should create the instructor account first, along with a mock course and assignment. Once you have done this, you can then create a TA account and a student account.
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-#### Screenshots:
+3. Set up environment variables:
+   - Copy `env.example` to `.env.local`
+   - Fill in your Supabase and Gemini API credentials
 
-![Instructor Dashboard Overview](screenshots/instructor-0.png)
-_Instructor dashboard showing course overview and statistics_
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-![Course Management](screenshots/instructor-1.png)
-_Course creation and management interface_
+5. Open [http://localhost:3000](http://localhost:3000)
 
-![Assignment Creation](screenshots/instructor-2.png)
-_Creating new assignments for courses_
+## Deployment to Vercel
 
-![User Management](screenshots/instructor-3.png)
-_Adding TAs and students to courses_
+### Option 1: Deploy via Vercel Dashboard (Recommended)
 
-### TA
+1. **Push your code to GitHub** (if not already done)
+   ```bash
+   git add .
+   git commit -m "Prepare for Vercel deployment"
+   git push origin main
+   ```
 
-Has the ability to view the course and grade assignments for the course. After creating a TA account, you can add it to the course you created as an instructor.
+2. **Go to [Vercel Dashboard](https://vercel.com/new)**
 
-#### Screenshots:
+3. **Import your repository**
+   - Click "Add New Project"
+   - Select your GitHub repository
+   - Vercel will auto-detect Next.js settings
 
-![TA Dashboard](screenshots/ta-0.png)
-_TA dashboard showing pending grading queue and assignment overview_
+4. **Configure Environment Variables**
+   Add the following environment variables in the Vercel dashboard:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `NEXT_PUBLIC_GEMINI_API_KEY`
 
-![Grading Interface](screenshots/ta-1.png)
-_PDF viewer and grading interface for reviewing student submissions_
+5. **Deploy**
+   - Click "Deploy"
+   - Vercel will build and deploy your application
 
-### Student
+### Option 2: Deploy via Vercel CLI
 
-Has the ability to view the course and submit assignments to the course. After creating the student account, you can then add it to the course you created as an instructor.
+1. **Install Vercel CLI**
+   ```bash
+   npm i -g vercel
+   ```
 
-#### Screenshots:
+2. **Login to Vercel**
+   ```bash
+   vercel login
+   ```
 
-![Student Dashboard](screenshots/student-0.png)
-_Student dashboard showing available assignments and submission status_
+3. **Deploy**
+   ```bash
+   vercel
+   ```
 
-![Assignment Submission](screenshots/student-1.png)
-_Assignment submission interface with file upload and text input_
+4. **Add Environment Variables**
+   ```bash
+   vercel env add NEXT_PUBLIC_SUPABASE_URL
+   vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+   vercel env add NEXT_PUBLIC_GEMINI_API_KEY
+   ```
 
-## Running the Project Locally:
+5. **Deploy to Production**
+   ```bash
+   vercel --prod
+   ```
 
-Set the `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `OPENAI_KEY`, and `CLAUDE_KEY` keys in the `.env.local` file. Then, run the development server:
+## Environment Variables
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+See `env.example` for required environment variables:
+
+- **NEXT_PUBLIC_SUPABASE_URL**: Your Supabase project URL
+- **NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY**: Your Supabase anon/public key
+- **NEXT_PUBLIC_GEMINI_API_KEY**: Your Google Gemini API key
+
+## Project Structure
+
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+src/
+├── app/              # Next.js app router pages
+├── components/       # React components
+├── lib/              # Server actions and utilities
+└── utils/            # Helper functions and clients
+```
