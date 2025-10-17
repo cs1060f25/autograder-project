@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -15,11 +14,12 @@ import {
 import {
   FileAttachment,
   createSubmission,
-  saveDraftSubmission,
   uploadFileToStorage,
   deleteFileFromStorage,
 } from "@/lib/submission-actions";
-import { Upload, X, FileText, Save, Send } from "lucide-react";
+import { Rubric, RubricCriterion, RubricScores } from "@/lib/data-utils";
+import { getRubricByAssignment, getRubricScores } from "@/lib/rubric-actions";
+import { Upload, X, FileText, Send, Star, CheckCircle } from "lucide-react";
 
 interface SubmissionModalProps {
   isOpen: boolean;
@@ -29,10 +29,14 @@ interface SubmissionModalProps {
   dueDate: string;
   studentId: string;
   instructions?: string;
+  submissionId?: string; // Add submission ID for AI grading status
   existingSubmission?: {
     content: string;
     attachments: FileAttachment[];
     status: string;
+    grade?: number;
+    feedback?: string;
+    graded_at?: string;
   };
 }
 
@@ -44,6 +48,7 @@ export function SubmissionModal({
   dueDate,
   studentId,
   instructions,
+  submissionId,
   existingSubmission,
 }: SubmissionModalProps) {
   const [content, setContent] = useState(existingSubmission?.content || "");
@@ -54,7 +59,64 @@ export function SubmissionModal({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [rubricScores, setRubricScores] = useState<RubricScores | null>(null);
+  const [loadingRubric, setLoadingRubric] = useState(false);
+  const [rubric, setRubric] = useState<Rubric | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load rubric always; scores only when graded
+  useEffect(() => {
+    if (!isOpen) return;
+    loadRubric();
+    if (
+      existingSubmission?.status === "graded" &&
+      existingSubmission.grade &&
+      submissionId
+    ) {
+      loadRubricScores();
+    }
+  }, [
+    isOpen,
+    existingSubmission?.status,
+    existingSubmission?.grade,
+    submissionId,
+  ]);
+
+  const loadRubricScores = async () => {
+    if (!existingSubmission) return;
+
+    setLoadingRubric(true);
+    try {
+      if (!submissionId) return;
+      const res = await getRubricScores(submissionId);
+      if ((res as any).success) {
+        setRubricScores(
+          ((res as any).rubricScores || null) as RubricScores | null
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load rubric scores:", error);
+    } finally {
+      setLoadingRubric(false);
+    }
+  };
+
+  const loadRubric = async () => {
+    setLoadingRubric(true);
+    try {
+      const res = await getRubricByAssignment(assignmentId as string);
+      if ((res as any).success && (res as any).rubric) {
+        setRubric((res as any).rubric as Rubric);
+      } else {
+        setRubric(null);
+      }
+    } catch (error) {
+      console.error("Failed to load rubric:", error);
+      setRubric(null);
+    } finally {
+      setLoadingRubric(false);
+    }
+  };
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -110,29 +172,6 @@ export function SubmissionModal({
     }
   };
 
-  const handleSaveDraft = async () => {
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      const result = await saveDraftSubmission(
-        assignmentId,
-        content,
-        attachments
-      );
-
-      if (result.success) {
-        setSuccess("Draft saved successfully");
-      } else {
-        setError(result.error || "Failed to save draft");
-      }
-    } catch (err) {
-      setError("Failed to save draft. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleSubmit = async () => {
     if (!content.trim() && attachments.length === 0) {
       setError("Please provide content or upload a file");
@@ -153,7 +192,7 @@ export function SubmissionModal({
           setContent("");
           setAttachments([]);
           setSuccess(null);
-        }, 1500);
+        }, 500);
       } else {
         setError(result.error || "Failed to submit assignment");
       }
@@ -192,6 +231,126 @@ export function SubmissionModal({
               </p>
             </div>
           )}
+
+          {/* Grade Display */}
+          {existingSubmission?.status === "graded" &&
+            existingSubmission.grade !== undefined && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <h4 className="font-medium text-green-800">
+                    Assignment Graded
+                  </h4>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-green-700">Grade:</span>
+                  <span className="text-lg font-bold text-green-800">
+                    {existingSubmission.grade}%
+                  </span>
+                </div>
+                {existingSubmission.graded_at && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Graded on{" "}
+                    {new Date(
+                      existingSubmission.graded_at
+                    ).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+          {/* Rubric Display */}
+          {rubric && (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-800">Rubric</h4>
+                <span className="text-xs text-gray-500">
+                  Max{" "}
+                  {rubric.criteria.reduce((s, c) => s + (c.max_points || 0), 0)}{" "}
+                  pts
+                </span>
+              </div>
+              <div className="space-y-3">
+                {rubric.criteria.map((c: RubricCriterion) => (
+                  <div
+                    key={c.id}
+                    className="p-3 bg-white border border-gray-200 rounded-md"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900">
+                        {c.name}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {existingSubmission?.status === "graded" &&
+                        rubricScores?.scores &&
+                        rubricScores.scores[c.id] !== undefined
+                          ? `${rubricScores.scores[c.id]} / ${c.max_points} pts`
+                          : `/ ${c.max_points} pts`}
+                      </span>
+                    </div>
+                    {c.description && (
+                      <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">
+                        {c.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rubric Scores Display */}
+          {existingSubmission?.status === "graded" && rubricScores && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Star className="h-5 w-5 text-blue-600" />
+                <h4 className="font-medium text-blue-800">Rubric Breakdown</h4>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(rubricScores.scores).map(
+                  ([criterionId, score]) => {
+                    const criterionName = rubric?.criteria.find(
+                      (c) => c.id === criterionId
+                    )?.name;
+                    return (
+                      <div
+                        key={criterionId}
+                        className="flex justify-between items-center text-sm"
+                      >
+                        <span className="text-blue-700">
+                          {criterionName || `Criterion ${criterionId}`}:
+                        </span>
+                        <span className="font-medium text-blue-800">
+                          {score} points
+                        </span>
+                      </div>
+                    );
+                  }
+                )}
+                <div className="border-t border-blue-200 pt-2 mt-2">
+                  <div className="flex justify-between items-center font-medium">
+                    <span className="text-blue-800">Total Score:</span>
+                    <span className="text-blue-800">
+                      {rubricScores.total_score} points
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Feedback Display */}
+          {existingSubmission?.status === "graded" &&
+            existingSubmission.feedback && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">
+                  Instructor Feedback
+                </h4>
+                <p className="text-sm text-yellow-700 whitespace-pre-wrap">
+                  {existingSubmission.feedback}
+                </p>
+              </div>
+            )}
 
           {/* Text Content */}
           <div className="space-y-2">

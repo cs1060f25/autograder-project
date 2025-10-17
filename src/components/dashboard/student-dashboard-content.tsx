@@ -236,12 +236,17 @@ export function StudentDashboardContent({
           dueDate={selectedAssignment.due_date}
           studentId={studentId}
           instructions={selectedAssignment.instructions || undefined}
+          submissionId={selectedAssignment.submission?.id}
           existingSubmission={
             selectedAssignment.submission
               ? {
                   content: selectedAssignment.submission.content || "",
                   attachments: selectedAssignment.submission.attachments || [],
                   status: selectedAssignment.submission.status,
+                  grade: selectedAssignment.submission.grade ?? undefined,
+                  feedback: selectedAssignment.submission.feedback ?? undefined,
+                  graded_at:
+                    selectedAssignment.submission.graded_at ?? undefined,
                 }
               : undefined
           }

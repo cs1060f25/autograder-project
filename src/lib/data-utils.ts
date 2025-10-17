@@ -23,6 +23,7 @@ export interface Assignment {
     name: string;
     code: string;
   };
+  rubric?: Rubric;
 }
 
 export interface Submission {
@@ -37,6 +38,9 @@ export interface Submission {
   feedback: string | null;
   graded_by: string | null;
   graded_at: string | null;
+  ai_grade_data: any | null;
+  ai_graded_at: string | null;
+  ai_grade_status: string | null;
   created_at: string;
   updated_at: string;
   assignment?: Assignment;
@@ -56,6 +60,35 @@ export interface Course {
     assignments: number;
     enrollments: number;
   };
+}
+
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  description: string;
+  max_points: number;
+}
+
+export interface Rubric {
+  id: string;
+  assignment_id: string;
+  criteria: RubricCriterion[];
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RubricScores {
+  id: string;
+  submission_id: string;
+  rubric_id: string;
+  scores: Record<string, number>; // criterion_id -> score
+  total_score: number;
+  ai_comments: Record<string, string> | null; // criterion_id -> AI comment
+  graded_by: string;
+  graded_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Student Dashboard Data Functions

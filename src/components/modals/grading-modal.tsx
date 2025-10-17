@@ -17,6 +17,13 @@ import {
   getSubmissionDetails,
   FileAttachment,
 } from "@/lib/submission-actions";
+import { getRubricByAssignment, updateRubric } from "@/lib/rubric-actions";
+import { Rubric, RubricCriterion } from "@/lib/data-utils";
+import {
+  getAIGradingStatus,
+  regenerateAIGrade,
+  AIGradeData,
+} from "@/lib/ai-grading-actions";
 import {
   FileText,
   Download,
@@ -25,6 +32,14 @@ import {
   User,
   Calendar,
   Sparkles,
+  Plus,
+  Trash2,
+  Edit3,
+  Save,
+  RefreshCw,
+  Bot,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface GradingModalProps {
@@ -76,6 +91,15 @@ export function GradingModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileAttachment | null>(null);
+  const [rubric, setRubric] = useState<Rubric | null>(null);
+  const [rubricScores, setRubricScores] = useState<Record<string, number>>({});
+  const [editingRubric, setEditingRubric] = useState(false);
+  const [rubricCriteria, setRubricCriteria] = useState<RubricCriterion[]>([]);
+  const [aiGradeData, setAiGradeData] = useState<AIGradeData | null>(null);
+  const [aiGradingStatus, setAiGradingStatus] = useState<string>("pending");
+  const [aiGradedAt, setAiGradedAt] = useState<string | null>(null);
+  const [regeneratingAI, setRegeneratingAI] = useState(false);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
 
   useEffect(() => {
     if (isOpen && submissionId) {
@@ -95,6 +119,41 @@ export function GradingModal({
         setSubmission(result.submission);
         setGrade(result.submission.grade?.toString() || "");
         setFeedback(result.submission.feedback || "");
+
+        // Load AI grading status
+        const aiStatusResult = await getAIGradingStatus(submissionId);
+        if (aiStatusResult.success && aiStatusResult.status) {
+          setAiGradingStatus(aiStatusResult.status.status);
+          setAiGradeData(aiStatusResult.status.ai_grade_data || null);
+          setAiGradedAt(aiStatusResult.status.ai_graded_at || null);
+        }
+
+        // Load rubric for this assignment
+        const rubricResult = await getRubricByAssignment(
+          result.submission.assignment.id
+        );
+        if (rubricResult.success && rubricResult.rubric) {
+          setRubric(rubricResult.rubric);
+          setRubricCriteria(rubricResult.rubric.criteria);
+
+          // Initialize rubric scores with AI suggestions if available
+          const initialScores: Record<string, number> = {};
+          rubricResult.rubric.criteria.forEach((criterion: RubricCriterion) => {
+            if (
+              aiStatusResult.success &&
+              aiStatusResult.status?.ai_grade_data
+            ) {
+              // Pre-fill with AI scores
+              const aiItem = aiStatusResult.status.ai_grade_data.items.find(
+                (item) => item.id === criterion.id
+              );
+              initialScores[criterion.id] = aiItem?.points || 0;
+            } else {
+              initialScores[criterion.id] = 0;
+            }
+          });
+          setRubricScores(initialScores);
+        }
       } else {
         setError(result.error || "Failed to load submission details");
       }
@@ -106,45 +165,104 @@ export function GradingModal({
   };
 
   const handleGradeSubmit = async () => {
-    if (!submissionId || !grade.trim()) {
-      setError("Please enter a grade");
+    if (!submissionId) {
+      setError("No submission selected");
       return;
     }
 
-    const gradeValue = parseInt(grade);
-    if (
-      isNaN(gradeValue) ||
-      gradeValue < 0 ||
-      gradeValue > 100 ||
-      !Number.isInteger(gradeValue)
-    ) {
-      setError("Grade must be a whole number between 0 and 100");
-      return;
-    }
+    // If using rubric, validate rubric scores
+    if (rubric && rubricCriteria.length > 0) {
+      const hasValidScores = rubricCriteria.every(
+        (criterion) =>
+          rubricScores[criterion.id] !== undefined &&
+          rubricScores[criterion.id] >= 0 &&
+          rubricScores[criterion.id] <= criterion.max_points
+      );
 
-    setGrading(true);
-    setError(null);
-
-    try {
-      const result = await gradeSubmission(submissionId, gradeValue, feedback);
-      if (result.success) {
-        setSuccess("Grade submitted successfully!");
-        setTimeout(() => {
-          onGradeSubmitted();
-          onClose();
-          // Reset form
-          setGrade("");
-          setFeedback("");
-          setSuccess(null);
-          setSubmission(null);
-        }, 1500);
-      } else {
-        setError(result.error || "Failed to submit grade");
+      if (!hasValidScores) {
+        setError("Please provide valid scores for all rubric criteria");
+        return;
       }
-    } catch (err) {
-      setError("Failed to submit grade. Please try again.");
-    } finally {
-      setGrading(false);
+
+      setGrading(true);
+      setError(null);
+
+      try {
+        const result = await gradeSubmission(
+          submissionId,
+          0, // grade not used when rubric scores provided
+          feedback,
+          rubricScores
+        );
+
+        if (result.success) {
+          setSuccess("Grade submitted successfully!");
+          setTimeout(() => {
+            onGradeSubmitted();
+            onClose();
+            // Reset form
+            setGrade("");
+            setFeedback("");
+            setSuccess(null);
+            setSubmission(null);
+            setRubric(null);
+            setRubricScores({});
+            setRubricCriteria([]);
+          }, 1500);
+        } else {
+          setError(result.error || "Failed to submit grade");
+        }
+      } catch (err) {
+        setError("Failed to submit grade. Please try again.");
+      } finally {
+        setGrading(false);
+      }
+    } else {
+      // Traditional grading
+      if (!grade.trim()) {
+        setError("Please enter a grade");
+        return;
+      }
+
+      const gradeValue = parseInt(grade);
+      if (
+        isNaN(gradeValue) ||
+        gradeValue < 0 ||
+        gradeValue > 100 ||
+        !Number.isInteger(gradeValue)
+      ) {
+        setError("Grade must be a whole number between 0 and 100");
+        return;
+      }
+
+      setGrading(true);
+      setError(null);
+
+      try {
+        const result = await gradeSubmission(
+          submissionId,
+          gradeValue,
+          feedback
+        );
+        if (result.success) {
+          setSuccess("Grade submitted successfully!");
+          setTimeout(() => {
+            onGradeSubmitted();
+            onClose();
+            // Reset form
+            setGrade("");
+            setFeedback("");
+            setSuccess(null);
+            setSubmission(null);
+          }, 1500);
+        } else {
+          setError(result.error || "Failed to submit grade");
+        }
+      } catch (err) {
+        setError("Failed to submit grade. Please try again.");
+      } finally {
+        setGrading(false);
+      }
     }
   };
 
@@ -164,6 +282,98 @@ export function GradingModal({
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const addCriterion = () => {
+    const newCriterion: RubricCriterion = {
+      id: Date.now().toString(),
+      name: "",
+      description: "",
+      max_points: 0,
+    };
+    setRubricCriteria([...rubricCriteria, newCriterion]);
+  };
+
+  const removeCriterion = (id: string) => {
+    setRubricCriteria(rubricCriteria.filter((c) => c.id !== id));
+    // Remove from scores as well
+    const newScores = { ...rubricScores };
+    delete newScores[id];
+    setRubricScores(newScores);
+  };
+
+  const updateCriterion = (
+    id: string,
+    field: keyof RubricCriterion,
+    value: string | number
+  ) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  };
+
+  const updateRubricScore = (criterionId: string, score: number) => {
+    setRubricScores({
+      ...rubricScores,
+      [criterionId]: score,
+    });
+  };
+
+  const getTotalRubricPoints = () => {
+    return rubricCriteria.reduce(
+      (sum, criterion) => sum + criterion.max_points,
+      0
+    );
+  };
+
+  const getTotalRubricScore = () => {
+    return Object.values(rubricScores).reduce((sum, score) => sum + score, 0);
+  };
+
+  const handleSaveRubricChanges = async () => {
+    if (!rubric) return;
+
+    setGrading(true);
+    setError(null);
+
+    try {
+      const result = await updateRubric(rubric.id, rubricCriteria);
+      if (result.success) {
+        setRubric({ ...rubric, criteria: rubricCriteria });
+        setEditingRubric(false);
+        setSuccess("Rubric updated successfully!");
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(result.error || "Failed to update rubric");
+      }
+    } catch (err) {
+      setError("Failed to update rubric. Please try again.");
+    } finally {
+      setGrading(false);
+    }
+  };
+
+  const handleRegenerateAI = async () => {
+    if (!submissionId) return;
+
+    setRegeneratingAI(true);
+    setError(null);
+
+    try {
+      const result = await regenerateAIGrade(submissionId);
+      if (result.success) {
+        setSuccess("AI grading regenerated successfully!");
+        // Reload submission details to get new AI data
+        await loadSubmissionDetails();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(result.error || "Failed to regenerate AI grade");
+      }
+    } catch (err) {
+      setError("Failed to regenerate AI grade. Please try again.");
+    } finally {
+      setRegeneratingAI(false);
+    }
   };
 
   if (!submission && loading) {
@@ -219,27 +429,128 @@ export function GradingModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative overflow-hidden rounded-xl border border-blue-200/50 bg-gradient-to-r from-blue-50/80 via-indigo-50/80 to-purple-50/80 p-4 shadow-sm backdrop-blur-sm">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-indigo-500/5 to-purple-500/5"></div>
-          <div className="relative flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm">
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
+        {/* AI Suggestions Panel */}
+        {aiGradeData && aiGradingStatus === "completed" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setShowAISuggestions(!showAISuggestions)}
+                className="flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-900"
+              >
+                <Bot className="h-4 w-4" />
+                AI Suggestions
+                {showAISuggestions ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRegenerateAI}
+                disabled={regeneratingAI}
+                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${
+                    regeneratingAI ? "animate-spin" : ""
+                  }`}
+                />
+                {regeneratingAI ? "Regenerating..." : "Regenerate AI Grade"}
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                AI-Assisted Grading Coming Soon
-              </h3>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                We will add AI-assistance features after this milestone. For
-                now, this is just meant to demonstrate the primary user journey.
-              </p>
+
+            {showAISuggestions && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  <Sparkles className="h-4 w-4" />
+                  <span>AI-Generated Scores and Feedback</span>
+                  {aiGradedAt && (
+                    <span className="text-xs text-blue-600 ml-auto">
+                      Generated: {new Date(aiGradedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                {/* AI Rubric Scores */}
+                <div className="space-y-3">
+                  {aiGradeData.items.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-lg p-3 border border-blue-100"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-900">
+                          {item.label}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">
+                            {item.points} / {item.maxPoints} points
+                          </span>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                            AI Generated
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2">
+                        {item.comments}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* AI Overall Feedback */}
+                {aiGradeData.overallFeedback && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Overall AI Feedback
+                    </h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {aiGradeData.overallFeedback}
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-blue-100 rounded-lg p-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium text-blue-800">
+                      AI Total Score:
+                    </span>
+                    <span className="font-bold text-blue-900">
+                      {aiGradeData.totalAwarded} / {aiGradeData.totalPossible}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI Grading Status */}
+        {aiGradingStatus === "pending" && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+              <span className="text-sm text-yellow-800">
+                AI grading in progress...
+              </span>
             </div>
           </div>
-          <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 opacity-60"></div>
-          <div className="absolute -bottom-1 -left-1 h-2 w-2 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 opacity-40"></div>
-        </div>
+        )}
+
+        {aiGradingStatus === "failed" && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-red-600" />
+              <span className="text-sm text-red-800">
+                AI grading failed. Please grade manually.
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 min-h-0">
           {/* Left Column - Assignment Details and PDF Viewer */}
@@ -358,25 +669,209 @@ export function GradingModal({
 
             {/* Grading Form */}
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="grade">Grade (0-100)</Label>
-                <Input
-                  id="grade"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={grade}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Only allow integers
-                    if (value === "" || /^\d+$/.test(value)) {
-                      setGrade(value);
-                    }
-                  }}
-                  placeholder="Enter grade (0-100)"
-                />
-              </div>
+              {rubric && rubricCriteria.length > 0 ? (
+                // Rubric-based grading
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Rubric Grading</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingRubric(!editingRubric)}
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      {editingRubric ? "Cancel Edit" : "Edit Rubric"}
+                    </Button>
+                  </div>
+
+                  {editingRubric ? (
+                    // Rubric editing mode
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600">
+                        Edit the rubric criteria. Changes will be saved to the
+                        assignment.
+                      </p>
+
+                      {rubricCriteria.map((criterion, index) => (
+                        <div
+                          key={criterion.id}
+                          className="p-4 border rounded-lg space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">
+                              Criterion {index + 1}
+                            </h4>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeCriterion(criterion.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Name</Label>
+                            <Input
+                              value={criterion.name}
+                              onChange={(e) =>
+                                updateCriterion(
+                                  criterion.id,
+                                  "name",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="e.g., Code Quality"
+                            />
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Description</Label>
+                            <textarea
+                              value={criterion.description}
+                              onChange={(e) =>
+                                updateCriterion(
+                                  criterion.id,
+                                  "description",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Describe what this criterion evaluates..."
+                              className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            />
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Max Points</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={criterion.max_points}
+                              onChange={(e) =>
+                                updateCriterion(
+                                  criterion.id,
+                                  "max_points",
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              placeholder="10"
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addCriterion}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Criterion
+                      </Button>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={handleSaveRubricChanges}
+                          disabled={grading}
+                          className="flex-1"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Save Rubric Changes
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setEditingRubric(false)}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Rubric scoring mode
+                    <div className="space-y-4">
+                      {rubricCriteria.map((criterion, index) => (
+                        <div
+                          key={criterion.id}
+                          className="p-4 border rounded-lg"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">{criterion.name}</h4>
+                            <span className="text-sm text-gray-500">
+                              {rubricScores[criterion.id] || 0} /{" "}
+                              {criterion.max_points} points
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {criterion.description}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`score-${criterion.id}`}>
+                              Score:
+                            </Label>
+                            <Input
+                              id={`score-${criterion.id}`}
+                              type="number"
+                              min="0"
+                              max={criterion.max_points}
+                              value={rubricScores[criterion.id] || 0}
+                              onChange={(e) =>
+                                updateRubricScore(
+                                  criterion.id,
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              className="w-20"
+                            />
+                            <span className="text-sm text-gray-500">
+                              / {criterion.max_points}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Total Score:</span>
+                          <span className="font-bold text-blue-600">
+                            {getTotalRubricScore()} / {getTotalRubricPoints()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Traditional grading
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Traditional Grading</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="grade">Grade (0-100)</Label>
+                    <Input
+                      id="grade"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={grade}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow integers
+                        if (value === "" || /^\d+$/.test(value)) {
+                          setGrade(value);
+                        }
+                      }}
+                      placeholder="Enter grade (0-100)"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="feedback" className="flex items-center gap-2">
@@ -420,7 +915,12 @@ export function GradingModal({
           <Button
             type="button"
             onClick={handleGradeSubmit}
-            disabled={grading || !grade.trim()}
+            disabled={
+              grading ||
+              (rubric && rubricCriteria.length > 0
+                ? false // Enable for rubric grading (validation happens in handleGradeSubmit)
+                : !grade.trim()) // Only require grade for traditional grading
+            }
           >
             {grading ? "Submitting..." : "Submit Grade"}
           </Button>
