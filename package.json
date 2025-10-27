@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "db:seed": "tsx scripts/seed-database.ts",
-    "db:generate-pdfs": "tsx scripts/generate-sample-pdfs.ts"
+    "db:generate-pdfs": "tsx scripts/generate-sample-pdfs.ts",
+    "db:test": "tsx scripts/test-supabase-setup.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
