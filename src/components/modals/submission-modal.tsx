@@ -352,18 +352,6 @@ export function SubmissionModal({
               </div>
             )}
 
-          {/* Text Content */}
-          <div className="space-y-2">
-            <Label htmlFor="content">Submission Comments (Optional)</Label>
-            <textarea
-              id="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter your comments here..."
-              className="w-full min-h-[200px] p-3 border border-gray-300 rounded-md resize-vertical"
-            />
-          </div>
-
           {/* File Upload */}
           <div className="space-y-2">
             <Label>Upload PDF Files</Label>
@@ -423,6 +411,18 @@ export function SubmissionModal({
               </div>
             </div>
           )}
+
+          {/* Text Content */}
+          <div className="space-y-2">
+            <Label htmlFor="content">Submission Comments (Optional)</Label>
+            <textarea
+              id="content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Enter your comments here..."
+              className="w-full min-h-[200px] p-3 border border-gray-300 rounded-md resize-vertical"
+            />
+          </div>
 
           {/* Error/Success Messages */}
           {error && (
