@@ -17,16 +17,31 @@ export function NotificationBell() {
     setLoading(true);
     try {
       const [notifResult, countResult] = await Promise.all([
-        getUserNotifications(10),
+        getUserNotifications(20), // Fetch more to account for duplicates
         getUnreadCount(),
       ]);
 
       if (notifResult.success && notifResult.data) {
-        setNotifications(notifResult.data);
+        // Group notifications by event_type and created_at to remove duplicates
+        const uniqueNotifications = notifResult.data.reduce((acc: any[], notification: any) => {
+          // Check if we already have a notification with same event_type within 1 second
+          const isDuplicate = acc.some(n => 
+            n.event_type === notification.event_type &&
+            Math.abs(new Date(n.created_at).getTime() - new Date(notification.created_at).getTime()) < 1000
+          );
+          
+          if (!isDuplicate) {
+            acc.push(notification);
+          }
+          return acc;
+        }, []);
+        
+        setNotifications(uniqueNotifications.slice(0, 10)); // Take first 10 unique
       }
 
       if (countResult.success && countResult.count !== undefined) {
-        setUnreadCount(countResult.count);
+        // Divide by 2 since we have duplicate entries (email + sms)
+        setUnreadCount(Math.ceil(countResult.count / 2));
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
@@ -97,7 +112,17 @@ export function NotificationBell() {
   const getMessagePreview = (message: string) => {
     try {
       const parsed = JSON.parse(message);
-      return parsed.subject || parsed.body?.substring(0, 100) || "New notification";
+      // For email: show subject
+      if (parsed.subject) {
+        return parsed.subject;
+      }
+      // For SMS: show body text without HTML
+      if (parsed.body) {
+        // Strip HTML tags and get plain text
+        const plainText = parsed.body.replace(/<[^>]*>/g, '').trim();
+        return plainText.substring(0, 100);
+      }
+      return "New notification";
     } catch {
       return message.substring(0, 100);
     }
