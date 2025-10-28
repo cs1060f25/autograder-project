@@ -1,8 +1,37 @@
 import { defineConfig, devices } from "@playwright/test";
+import { readFileSync } from "fs";
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
+// Load environment variables from .env file
+function loadEnvFile() {
+  try {
+    const envFile = readFileSync(".env", "utf-8");
+    const env: Record<string, string> = {};
+
+    envFile.split("\n").forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        return;
+      }
+
+      const match = trimmed.match(/^([^=]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        const value = match[2].trim().replace(/^["']|["']$/g, "");
+        env[key] = value;
+      }
+    });
+
+    return env;
+  } catch (error) {
+    console.warn("No .env file found, using system environment variables");
+    return {};
+  }
+}
+
+// Load env vars from .env file and add to process.env
+const envVars = loadEnvFile();
+Object.assign(process.env, envVars);
+
 export default defineConfig({
   testDir: "./src/__tests__/e2e",
 
