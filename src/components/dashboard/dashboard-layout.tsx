@@ -5,6 +5,7 @@ import { signOut } from "@/lib/auth-actions";
 import { UserProfile, UserRole } from "@/lib/user-utils";
 import { BookOpen, GraduationCap, Users, LogOut, User } from "lucide-react";
 import { RoleGuard } from "./role-guard";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -56,6 +57,8 @@ export function DashboardLayout({
                   ({getRoleDisplayName(userProfile.role)})
                 </span>
               </div>
+
+              <NotificationBell />
 
               <Button
                 variant="outline"
