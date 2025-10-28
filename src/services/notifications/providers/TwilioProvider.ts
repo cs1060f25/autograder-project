@@ -58,7 +58,7 @@ export class TwilioProvider implements INotificationProvider {
         const data = await response.json();
         return {
           success: true,
-          messageId: data.sid,
+          messageId: data?.sid,
         };
       } else {
         const errorData = await response.json().catch(() => ({}));
