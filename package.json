@@ -11,7 +11,10 @@
     "test:coverage": "jest --coverage",
     "test:integration": "jest --testPathPatterns=integration",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "db:seed": "tsx scripts/seed-database.ts",
+    "db:generate-pdfs": "tsx scripts/generate-sample-pdfs.ts",
+    "db:test": "tsx scripts/test-supabase-setup.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -43,9 +46,11 @@
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "next": "^16.0.0",
+    "pdf-lib": "^1.17.1",
     "playwright": "^1.56.1",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.5",
+    "tsx": "^4.19.2",
     "tw-animate-css": "^1.3.8",
     "typescript": "^5"
   }

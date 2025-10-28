@@ -1,5 +1,24 @@
 "use server";
 
+/**
+ * Submission Actions
+ * 
+ * This module provides server actions for managing student submissions and document uploads.
+ * 
+ * Key actions for students:
+ * - uploadSubmissionDocument: Upload assignment files (PDF, images, text) to submission-files bucket
+ * - deleteSubmissionDocument: Delete uploaded files before grading or due date
+ * - createSubmission: Submit an assignment with content and attachments
+ * 
+ * Security features:
+ * - Role-based access control (students only)
+ * - Course enrollment verification
+ * - Due date enforcement
+ * - File type and size validation (50MB limit)
+ * - Automatic file cleanup on errors
+ * - Signed URLs for private bucket access
+ */
+
 import { createClient } from "@/utils/supabase/server";
 import { requireAuth } from "./user-utils";
 import { revalidatePath } from "next/cache";
@@ -186,6 +205,135 @@ export async function uploadFileToStorage(
   }
 }
 
+/**
+ * Upload a document for a student submission
+ * This action is specifically for students to upload their assignment submissions
+ */
+export async function uploadSubmissionDocument(
+  file: File,
+  assignmentId: string
+): Promise<{
+  success: boolean;
+  fileAttachment?: FileAttachment;
+  error?: string;
+}> {
+  const userProfile = await requireAuth();
+
+  // Only students can upload submission documents
+  if (userProfile.role !== "student") {
+    return { success: false, error: "Only students can upload submission documents" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify assignment exists and is published
+  const { data: assignment, error: assignmentError } = await supabase
+    .from("assignments")
+    .select("id, status, due_date, course_id, max_points")
+    .eq("id", assignmentId)
+    .eq("status", "published")
+    .single();
+
+  if (assignmentError || !assignment) {
+    return { success: false, error: "Assignment not found or not published" };
+  }
+
+  // Check if due date has passed
+  const now = new Date();
+  const dueDate = new Date(assignment.due_date);
+  if (now > dueDate) {
+    return { success: false, error: "Assignment due date has passed. Cannot upload documents." };
+  }
+
+  // Verify student is enrolled in the course
+  const { data: enrollment } = await supabase
+    .from("course_enrollments")
+    .select("id, status")
+    .eq("student_id", userProfile.id)
+    .eq("course_id", assignment.course_id)
+    .eq("status", "active")
+    .single();
+
+  if (!enrollment) {
+    return { success: false, error: "You are not enrolled in this course" };
+  }
+
+  // Validate file type - allow PDF, images, and text files
+  const allowedTypes = [
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "text/plain"
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      success: false,
+      error: "Invalid file type. Allowed types: PDF, PNG, JPEG, JPG, TXT"
+    };
+  }
+
+  // Validate file size (50MB limit as per storage bucket config)
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  if (file.size > maxSize) {
+    return { success: false, error: "File size must be less than 50MB" };
+  }
+
+  // Validate file name
+  if (!file.name || file.name.length > 255) {
+    return { success: false, error: "Invalid file name" };
+  }
+
+  // Generate unique filename with student ID folder structure
+  const fileExt = file.name.split(".").pop();
+  const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const timestamp = Date.now();
+  const fileName = `${userProfile.id}/${assignmentId}/${timestamp}_${sanitizedFileName}`;
+
+  try {
+    // Upload file to submission-files bucket
+    const { data, error } = await supabase.storage
+      .from("submission-files")
+      .upload(fileName, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Storage upload error:", error);
+      return { success: false, error: `Upload failed: ${error.message}` };
+    }
+
+    // Get signed URL for private bucket (valid for 1 year)
+    const { data: urlData, error: urlError } = await supabase.storage
+      .from("submission-files")
+      .createSignedUrl(fileName, 31536000); // 1 year in seconds
+
+    if (urlError || !urlData) {
+      // Cleanup uploaded file if URL generation fails
+      await supabase.storage.from("submission-files").remove([fileName]);
+      return { success: false, error: "Failed to generate file URL" };
+    }
+
+    const fileAttachment: FileAttachment = {
+      name: file.name,
+      url: urlData.signedUrl,
+      size: file.size,
+      type: file.type,
+      uploaded_at: new Date().toISOString(),
+    };
+
+    return { success: true, fileAttachment };
+  } catch (error) {
+    console.error("Upload exception:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Upload failed unexpectedly",
+    };
+  }
+}
+
 export async function deleteFileFromStorage(
   fileUrl: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -211,6 +359,91 @@ export async function deleteFileFromStorage(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Delete failed",
+    };
+  }
+}
+
+/**
+ * Delete a submission document uploaded by a student
+ * Students can only delete their own files before the assignment is graded
+ */
+export async function deleteSubmissionDocument(
+  fileUrl: string,
+  assignmentId: string
+): Promise<{ success: boolean; error?: string }> {
+  const userProfile = await requireAuth();
+
+  // Only students can delete their submission documents
+  if (userProfile.role !== "student") {
+    return { success: false, error: "Only students can delete submission documents" };
+  }
+
+  const supabase = await createClient();
+
+  // Check if submission exists and is not yet graded
+  const { data: submission, error: submissionError } = await supabase
+    .from("submissions")
+    .select("id, status, assignment_id")
+    .eq("assignment_id", assignmentId)
+    .eq("student_id", userProfile.id)
+    .single();
+
+  if (submissionError || !submission) {
+    return { success: false, error: "Submission not found" };
+  }
+
+  // Prevent deletion if already graded
+  if (submission.status === "graded") {
+    return { success: false, error: "Cannot delete files from a graded submission" };
+  }
+
+  // Verify assignment due date hasn't passed
+  const { data: assignment } = await supabase
+    .from("assignments")
+    .select("due_date")
+    .eq("id", assignmentId)
+    .single();
+
+  if (assignment) {
+    const now = new Date();
+    const dueDate = new Date(assignment.due_date);
+    if (now > dueDate) {
+      return { success: false, error: "Cannot delete files after the due date" };
+    }
+  }
+
+  try {
+    // Extract file path from URL (handle both signed URLs and regular URLs)
+    const url = new URL(fileUrl);
+    const pathMatch = url.pathname.match(/submission-files\/(.+)/);
+    
+    if (!pathMatch) {
+      return { success: false, error: "Invalid file URL" };
+    }
+
+    const filePath = pathMatch[1];
+
+    // Verify the file belongs to the current user
+    if (!filePath.startsWith(userProfile.id)) {
+      return { success: false, error: "Unauthorized: You can only delete your own files" };
+    }
+
+    // Delete file from storage
+    const { error } = await supabase.storage
+      .from("submission-files")
+      .remove([filePath]);
+
+    if (error) {
+      console.error("Storage deletion error:", error);
+      return { success: false, error: `Delete failed: ${error.message}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Delete exception:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Delete failed unexpectedly",
     };
   }
 }
