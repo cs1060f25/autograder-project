@@ -216,10 +216,6 @@ export function SubmissionModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Submit Assignment: {assignmentTitle}</DialogTitle>
-          <DialogDescription>
-            Due: {new Date(dueDate).toLocaleDateString()} at{" "}
-            {new Date(dueDate).toLocaleTimeString()}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
