@@ -119,26 +119,37 @@ export async function createSubmission(
 
   revalidatePath("/dashboard/student");
 
+  // Get the submission ID for notifications and AI grading
+  const { data: newSubmission } = await supabase
+    .from("submissions")
+    .select("id")
+    .eq("assignment_id", assignmentId)
+    .eq("student_id", userProfile.id)
+    .single();
+
+  // Send notification to instructor/TAs about document upload
+  if (attachments.length > 0 && newSubmission) {
+    const { notifyDocumentUploaded } = await import("@/lib/notification-actions");
+    await notifyDocumentUploaded({
+      documentId: newSubmission.id,
+      studentId: userProfile.id,
+      assignmentId: assignmentId,
+      fileName: attachments.map(a => a.name).join(", "),
+      courseId: assignment.course_id,
+    }).catch((err) => console.error("Failed to send notification:", err));
+  }
+
   // Trigger AI grading if assignment has a rubric and PDF attachments
   if (
     attachments.length > 0 &&
-    attachments.some((att) => att.type === "application/pdf")
+    attachments.some((att) => att.type === "application/pdf") &&
+    newSubmission
   ) {
-    // Get the submission ID for AI grading
-    const { data: newSubmission } = await supabase
-      .from("submissions")
-      .select("id")
-      .eq("assignment_id", assignmentId)
-      .eq("student_id", userProfile.id)
-      .single();
-
-    if (newSubmission) {
-      // Trigger AI grading asynchronously (don't wait for it)
-      triggerAIGrading(newSubmission.id).catch((error) => {
-        console.error("AI grading failed:", error);
-        // Don't fail the submission if AI grading fails
-      });
-    }
+    // Trigger AI grading asynchronously (don't wait for it)
+    triggerAIGrading(newSubmission.id).catch((error) => {
+      console.error("AI grading failed:", error);
+      // Don't fail the submission if AI grading fails
+    });
   }
 
   return { success: true, error: null };
@@ -517,6 +528,13 @@ export async function gradeSubmission(
     }
   }
 
+  // Get student ID from submission
+  const { data: submissionData } = await supabase
+    .from("submissions")
+    .select("student_id")
+    .eq("id", submissionId)
+    .single();
+
   // Update submission with grade
   const { error } = await supabase
     .from("submissions")
@@ -532,6 +550,19 @@ export async function gradeSubmission(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  // Send notification to student
+  if (submissionData?.student_id) {
+    const { notifySubmissionGraded } = await import("@/lib/notification-actions");
+    await notifySubmissionGraded({
+      submissionId,
+      studentId: submissionData.student_id,
+      assignmentId: submission.assignment_id,
+      grade: finalGrade,
+      feedback: feedback,
+      gradedBy: userProfile.id,
+    }).catch((err) => console.error("Failed to send notification:", err));
   }
 
   revalidatePath("/dashboard/ta");
