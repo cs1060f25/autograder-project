@@ -14,9 +14,23 @@ export default function NotificationsPage() {
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      const result = await getUserNotifications(50);
+      const result = await getUserNotifications(100); // Fetch more to account for duplicates
       if (result.success && result.data) {
-        setNotifications(result.data);
+        // Group notifications by event_type and created_at to remove duplicates
+        const uniqueNotifications = result.data.reduce((acc: any[], notification: any) => {
+          // Check if we already have a notification with same event_type within 1 second
+          const isDuplicate = acc.some(n => 
+            n.event_type === notification.event_type &&
+            Math.abs(new Date(n.created_at).getTime() - new Date(notification.created_at).getTime()) < 1000
+          );
+          
+          if (!isDuplicate) {
+            acc.push(notification);
+          }
+          return acc;
+        }, []);
+        
+        setNotifications(uniqueNotifications.slice(0, 50)); // Take first 50 unique
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
@@ -208,8 +222,6 @@ export default function NotificationsPage() {
                           <span>
                             {formatDistanceToNow(new Date(notification.created_at))}
                           </span>
-                          <span>•</span>
-                          <span className="capitalize">{notification.provider}</span>
                         </div>
                       </div>
                     </div>
