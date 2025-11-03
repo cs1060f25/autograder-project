@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,6 @@ import {
   Users,
   BarChart3,
   Plus,
-  Eye,
   Edit,
   TrendingUp,
   Clock,
@@ -62,6 +62,7 @@ export function InstructorDashboardContent({
   recentAssignments,
   stats,
 }: InstructorDashboardContentProps) {
+  const router = useRouter();
   const [courseModalOpen, setCourseModalOpen] = useState(false);
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [enrollmentModalOpen, setEnrollmentModalOpen] = useState(false);
@@ -323,7 +324,12 @@ export function InstructorDashboardContent({
                   recentAssignments.map((assignment) => (
                     <div
                       key={assignment.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/instructor/assignments/${assignment.id}`
+                        )
+                      }
                     >
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(assignment)}
@@ -349,7 +355,7 @@ export function InstructorDashboardContent({
                         </div>
                       </div>
 
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant="outline"
