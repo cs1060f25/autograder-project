@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Alert } from "@/components/ui/alert";
 import { CourseModal } from "@/components/modals/course-modal";
 import { AssignmentModal } from "@/components/modals/assignment-modal";
 import { EnrollmentModal } from "@/components/modals/enrollment-modal";
@@ -61,6 +70,15 @@ export function InstructorDashboardContent({
     null
   );
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<
+    | (Assignment & {
+        submissions_count: number;
+        graded_count: number;
+        average_grade: number | null;
+      })
+    | null
+  >(null);
 
   const formatGrade = (averageGrade: number | null) => {
     if (!averageGrade) return "N/A";
@@ -122,12 +140,25 @@ export function InstructorDashboardContent({
     }
   };
 
-  const handleDeleteAssignment = async (assignmentId: string) => {
-    if (
-      confirm(
-        "Are you sure you want to delete this assignment? This action cannot be undone."
-      )
-    ) {
+  const handleDeleteAssignment = (
+    assignment: Assignment & {
+      submissions_count: number;
+      graded_count: number;
+      average_grade: number | null;
+    }
+  ) => {
+    setAssignmentToDelete(assignment);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteAssignment = async () => {
+    if (assignmentToDelete) {
+      // Close modal immediately for better UX
+      setDeleteDialogOpen(false);
+      const assignmentId = assignmentToDelete.id;
+      setAssignmentToDelete(null);
+
+      // Perform deletion (will redirect)
       await deleteAssignment(assignmentId);
     }
   };
@@ -354,7 +385,7 @@ export function InstructorDashboardContent({
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleDeleteAssignment(assignment.id)}
+                          onClick={() => handleDeleteAssignment(assignment)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -392,6 +423,48 @@ export function InstructorDashboardContent({
           course={selectedCourse}
         />
       )}
+
+      {/* Delete Assignment Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Assignment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this assignment? This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {assignmentToDelete && (
+            <Alert variant="destructive">
+              <div className="space-y-1">
+                <p className="font-semibold">{assignmentToDelete.title}</p>
+                {assignmentToDelete.submissions_count > 0 && (
+                  <p className="text-sm">
+                    This assignment has {assignmentToDelete.submissions_count}{" "}
+                    submission
+                    {assignmentToDelete.submissions_count !== 1 ? "s" : ""}. All
+                    associated submissions and grades will also be deleted.
+                  </p>
+                )}
+              </div>
+            </Alert>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setAssignmentToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteAssignment}>
+              Delete Assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
