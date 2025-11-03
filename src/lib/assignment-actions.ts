@@ -284,3 +284,78 @@ export async function updateAssignmentAction(
   revalidatePath("/dashboard/instructor");
   return { success: true, error: null };
 }
+
+export async function getAssignmentWithSubmissions(assignmentId: string) {
+  const userProfile = await requireAuth();
+
+  if (userProfile.role !== "instructor" && userProfile.role !== "ta") {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Get assignment details
+  const { data: assignment, error: assignmentError } = await supabase
+    .from("assignments")
+    .select(
+      `
+      *,
+      course:course_id (
+        id,
+        name,
+        code
+      )
+    `
+    )
+    .eq("id", assignmentId)
+    .single();
+
+  if (assignmentError || !assignment) {
+    return { success: false, error: "Assignment not found" };
+  }
+
+  // Verify instructor owns this assignment or is a TA for the course
+  if (userProfile.role === "instructor" && assignment.instructor_id !== userProfile.id) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  // Get all submissions for this assignment with student details
+  const { data: submissions, error: submissionsError } = await supabase
+    .from("submissions")
+    .select(
+      `
+      *,
+      student:student_id (
+        id,
+        first_name,
+        last_name,
+        email
+      )
+    `
+    )
+    .eq("assignment_id", assignmentId)
+    .order("submitted_at", { ascending: false });
+
+  if (submissionsError) {
+    return { success: false, error: "Failed to fetch submissions" };
+  }
+
+  // Calculate stats
+  const totalSubmissions = submissions?.length || 0;
+  const gradedSubmissions = submissions?.filter((s) => s.status === "graded").length || 0;
+  const pendingSubmissions = submissions?.filter((s) => s.status === "submitted").length || 0;
+  const grades = submissions?.filter((s) => s.grade !== null).map((s) => s.grade!) || [];
+  const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : null;
+
+  return {
+    success: true,
+    assignment,
+    submissions: submissions || [],
+    stats: {
+      total: totalSubmissions,
+      graded: gradedSubmissions,
+      pending: pendingSubmissions,
+      averageGrade,
+    },
+  };
+}
