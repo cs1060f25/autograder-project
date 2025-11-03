@@ -48,6 +48,10 @@ export class SendGridProvider implements INotificationProvider {
           from: { email: this.fromEmail },
           content: [
             {
+              type: "text/plain",
+              value: this.htmlToPlainText(message.body),
+            },
+            {
               type: "text/html",
               value: message.body,
             },
@@ -83,5 +87,39 @@ export class SendGridProvider implements INotificationProvider {
 
   getProviderName(): string {
     return "SendGrid";
+  }
+
+  /**
+   * Convert HTML to plain text for email fallback
+   */
+  private htmlToPlainText(html: string): string {
+    return html
+      // Remove DOCTYPE and html/head/body tags
+      .replace(/<!DOCTYPE[^>]*>/gi, "")
+      .replace(/<html[^>]*>/gi, "")
+      .replace(/<\/html>/gi, "")
+      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+      .replace(/<body[^>]*>/gi, "")
+      .replace(/<\/body>/gi, "")
+      // Convert common block elements to newlines
+      .replace(/<\/div>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/h[1-6]>/gi, "\n\n")
+      .replace(/<h[1-6][^>]*>/gi, "")
+      // Convert links to text with URL
+      .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, "$2 ($1)")
+      // Remove remaining HTML tags
+      .replace(/<[^>]+>/g, "")
+      // Decode common HTML entities
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      // Clean up excessive whitespace
+      .replace(/\n\s*\n\s*\n/g, "\n\n")
+      .trim();
   }
 }
