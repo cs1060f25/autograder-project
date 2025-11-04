@@ -20,6 +20,7 @@ export enum NotificationEventType {
   ASSIGNMENT_PUBLISHED = "assignment_published",
   ASSIGNMENT_DUE_SOON = "assignment_due_soon",
   ASSIGNMENT_OVERDUE = "assignment_overdue",
+  REGRADE_REQUEST_SUBMITTED = "regrade_request_submitted",
 }
 
 // Notification status
@@ -59,6 +60,15 @@ export interface AssignmentEvent extends NotificationEvent {
   assignmentId: string;
   courseId: string;
   studentIds?: string[];
+}
+
+// Regrade request events
+export interface RegradeRequestEvent extends NotificationEvent {
+  userId: string; // TA/Instructor being notified
+  studentName: string;
+  assignmentId: string;
+  assignmentTitle: string;
+  rubricItemId: string;
 }
 
 // User contact information

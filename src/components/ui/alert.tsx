@@ -27,3 +27,16 @@ export function Alert({
     </div>
   );
 }
+
+interface AlertDescriptionProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function AlertDescription({ children, className }: AlertDescriptionProps) {
+  return (
+    <div className={cn("text-sm [&_p]:leading-relaxed", className)}>
+      {children}
+    </div>
+  );
+}
