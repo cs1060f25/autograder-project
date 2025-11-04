@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmissionModal } from "@/components/modals/submission-modal";
+import { RegradeRequestModal } from "@/components/modals/regrade-request-modal";
 import { Assignment, Submission } from "@/lib/data-utils";
 
 // Type for assignments with optional submission data
@@ -15,6 +16,7 @@ import {
   Upload,
   Eye,
   FileText,
+  AlertCircle,
 } from "lucide-react";
 
 interface StudentDashboardContentProps {
@@ -35,6 +37,20 @@ export function StudentDashboardContent({
   const [selectedAssignment, setSelectedAssignment] =
     useState<AssignmentWithSubmission | null>(null);
   const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
+  const [isRegradeModalOpen, setIsRegradeModalOpen] = useState(false);
+  const [regradeAssignment, setRegradeAssignment] =
+    useState<AssignmentWithSubmission | null>(null);
+  const [rubricData, setRubricData] = useState<{
+    rubricScoreId: string;
+    items: Array<{
+      id: string;
+      name: string;
+      description: string;
+      points: number;
+      deduction?: number;
+    }>;
+  } | null>(null);
+  const [loadingRubric, setLoadingRubric] = useState(false);
 
   const getStatusIcon = (
     assignment: Assignment & { submission?: Submission }
@@ -84,6 +100,32 @@ export function StudentDashboardContent({
       setSelectedAssignment(assignment);
       setIsSubmissionModalOpen(true);
     }
+  };
+
+  const handleRequestRegrade = async (
+    assignment: Assignment & { submission?: Submission }
+  ) => {
+    if (!assignment.submission) return;
+    
+    setRegradeAssignment(assignment);
+    setIsRegradeModalOpen(true);
+    setLoadingRubric(true);
+    
+    // Fetch rubric data
+    const { getRubricItemsForSubmission } = await import("@/lib/regrade-actions");
+    const result = await getRubricItemsForSubmission(assignment.submission.id);
+    
+    if (result.success && result.items && result.rubricScoreId) {
+      setRubricData({
+        rubricScoreId: result.rubricScoreId,
+        items: result.items,
+      });
+    } else {
+      console.error("Failed to load rubric data:", result.error);
+      // Keep modal open but show error in modal
+    }
+    
+    setLoadingRubric(false);
   };
 
   const isAssignmentOverdue = (dueDate: string) => {
@@ -195,14 +237,28 @@ export function StudentDashboardContent({
 
                     <div className="flex space-x-2">
                       {assignment.submission && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewSubmission(assignment)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewSubmission(assignment)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          
+                          {assignment.submission.status === "graded" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRequestRegrade(assignment)}
+                              className="text-orange-600 hover:text-orange-700 border-orange-300 hover:border-orange-400"
+                            >
+                              <AlertCircle className="h-4 w-4 mr-1" />
+                              Request Regrade
+                            </Button>
+                          )}
+                        </>
                       )}
 
                       <Button
@@ -250,6 +306,23 @@ export function StudentDashboardContent({
                 }
               : undefined
           }
+        />
+      )}
+
+      {/* Regrade Request Modal */}
+      {regradeAssignment && regradeAssignment.submission && rubricData && (
+        <RegradeRequestModal
+          isOpen={isRegradeModalOpen}
+          onClose={() => {
+            setIsRegradeModalOpen(false);
+            setRegradeAssignment(null);
+            setRubricData(null);
+          }}
+          submissionId={regradeAssignment.submission.id}
+          assignmentId={regradeAssignment.id}
+          assignmentTitle={regradeAssignment.title}
+          rubricScoreId={rubricData.rubricScoreId}
+          rubricItems={rubricData.items}
         />
       )}
     </div>

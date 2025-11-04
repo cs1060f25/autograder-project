@@ -492,6 +492,43 @@ export class NotificationService {
         `;
         break;
 
+      case NotificationEventType.REGRADE_REQUEST_SUBMITTED:
+        const regradeEvent = event as any;
+        
+        subject = `Regrade Request: ${regradeEvent.studentName} - ${regradeEvent.assignmentTitle}`;
+        body = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #fff3cd; border-radius: 8px; padding: 24px; margin-bottom: 20px;">
+              <h2 style="color: #856404; margin-top: 0;">📝 New Regrade Request</h2>
+              <p style="font-size: 16px; margin-bottom: 8px;">Hello ${firstName},</p>
+              <p style="font-size: 16px;"><strong>${regradeEvent.studentName}</strong> has submitted a regrade request.</p>
+            </div>
+            
+            <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+              <p style="margin: 0 0 12px 0;"><strong>Student:</strong> ${regradeEvent.studentName}</p>
+              <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${regradeEvent.assignmentTitle}</p>
+              <p style="margin: 0 0 12px 0;"><strong>Rubric Item:</strong> ${regradeEvent.rubricItemId}</p>
+              <p style="margin: 0;"><strong>Status:</strong> <span style="color: #ffc107; font-weight: 600;">Pending Review</span></p>
+            </div>
+            
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${getDashboardUrl()}" style="display: inline-block; background-color: #ffc107; color: #000; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">Review Request</a>
+            </div>
+            
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e1e4e8; color: #6c757d; font-size: 14px;">
+              <p style="margin: 0;">This is an automated notification from your course autograder system.</p>
+            </div>
+          </body>
+          </html>
+        `;
+        break;
+
       default:
         return null;
     }
