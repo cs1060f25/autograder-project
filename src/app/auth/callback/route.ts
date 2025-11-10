@@ -4,8 +4,53 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/utils/supabase/server";
 
+function extractNamesFromMetadata(
+  userMetadata: Record<string, any> | undefined
+): { first_name: string | null; last_name: string | null } {
+  if (!userMetadata) {
+    return { first_name: null, last_name: null };
+  }
+
+  if (userMetadata.given_name && userMetadata.family_name) {
+    return {
+      first_name: userMetadata.given_name,
+      last_name: userMetadata.family_name,
+    };
+  }
+
+  if (userMetadata.first_name && userMetadata.last_name) {
+    return {
+      first_name: userMetadata.first_name,
+      last_name: userMetadata.last_name,
+    };
+  }
+
+  const displayName = userMetadata.name || userMetadata.full_name || null;
+
+  if (displayName) {
+    const nameParts = displayName.trim().split(/\s+/);
+    if (nameParts.length === 1) {
+      return { first_name: nameParts[0], last_name: null };
+    } else if (nameParts.length >= 2) {
+      return {
+        first_name: nameParts[0],
+        last_name: nameParts.slice(1).join(" "),
+      };
+    }
+  }
+
+  if (userMetadata.first_name) {
+    return {
+      first_name: userMetadata.first_name,
+      last_name: userMetadata.last_name || null,
+    };
+  }
+
+  return { first_name: null, last_name: null };
+}
+
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+  const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
@@ -43,19 +88,16 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (user) {
-      // Upsert user record to handle OAuth users and account linking
+      const { first_name, last_name } = extractNamesFromMetadata(
+        user.user_metadata
+      );
+
       const { error: upsertError } = await supabase.from("users").upsert(
         {
           id: user.id,
           email: user.email,
-          first_name:
-            user.user_metadata?.first_name ||
-            user.user_metadata?.full_name?.split(" ")[0] ||
-            null,
-          last_name:
-            user.user_metadata?.last_name ||
-            user.user_metadata?.full_name?.split(" ").slice(1).join(" ") ||
-            null,
+          first_name,
+          last_name,
           updated_at: new Date().toISOString(),
         },
         {

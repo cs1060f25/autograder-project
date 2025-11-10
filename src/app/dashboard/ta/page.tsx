@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/user-utils";
 import { getTAAssignments, Assignment, Submission } from "@/lib/data-utils";
+import { createClient } from "@/utils/supabase/client";
 import { GradingModal } from "@/components/modals/grading-modal";
 import { FileText, Clock, CheckCircle, Star, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -35,6 +36,7 @@ export default function TADashboard() {
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<
     string | null
   >(null);
+  const [allSubmissionIds, setAllSubmissionIds] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -47,6 +49,23 @@ export default function TADashboard() {
 
       const dashboardData = await getTAAssignments(profile);
       setData(dashboardData);
+
+      // Collect all submission IDs from all assignments for navigation
+      // Get ALL submissions (not just pending) for full navigation
+      const supabase = createClient();
+      const assignmentIds = dashboardData.assignments.map((a) => a.id);
+      if (assignmentIds.length > 0) {
+        const { data: allSubmissions } = await supabase
+          .from("submissions")
+          .select("id")
+          .in("assignment_id", assignmentIds)
+          .order("submitted_at", { ascending: false });
+
+        const allIds = allSubmissions?.map((s) => s.id) || [];
+        setAllSubmissionIds(allIds);
+      } else {
+        setAllSubmissionIds([]);
+      }
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
@@ -57,6 +76,12 @@ export default function TADashboard() {
   const handleGradeClick = (submissionId: string) => {
     setSelectedSubmissionId(submissionId);
     setGradingModalOpen(true);
+  };
+
+  const handleNavigateSubmission = (newSubmissionId: string) => {
+    setSelectedSubmissionId(newSubmissionId);
+    // Reload to get fresh data
+    loadData();
   };
 
   const handleGradeSubmitted = () => {
@@ -216,7 +241,8 @@ export default function TADashboard() {
                     data.pendingGrading.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => handleGradeClick(item.id)}
                       >
                         <div>
                           <h3 className="font-medium text-gray-900">
@@ -231,16 +257,6 @@ export default function TADashboard() {
                               ? new Date(item.submitted_at).toLocaleDateString()
                               : "Unknown"}
                           </p>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleGradeClick(item.id)}
-                          >
-                            Grade
-                          </Button>
                         </div>
                       </div>
                     ))
@@ -260,6 +276,15 @@ export default function TADashboard() {
         }}
         submissionId={selectedSubmissionId}
         onGradeSubmitted={handleGradeSubmitted}
+        submissionIds={
+          allSubmissionIds.length > 0 ? allSubmissionIds : undefined
+        }
+        currentSubmissionIndex={
+          selectedSubmissionId && allSubmissionIds.length > 0
+            ? allSubmissionIds.indexOf(selectedSubmissionId)
+            : undefined
+        }
+        onNavigateSubmission={handleNavigateSubmission}
       />
     </>
   );

@@ -68,6 +68,10 @@ export interface RubricCriterion {
   name: string;
   description: string;
   max_points: number;
+  presets?: Array<{
+    points: number;
+    description: string;
+  }>;
 }
 
 export interface Rubric {

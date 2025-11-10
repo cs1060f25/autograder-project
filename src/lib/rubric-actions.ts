@@ -55,9 +55,20 @@ export async function createRubric(
     };
   }
 
+  // Supabase JSONB automatically serializes the criteria array
+  // All properties including presets are preserved
+  // Ensure presets are explicitly included in the criteria array
+  const criteriaWithPresets = criteria.map((criterion) => ({
+    id: criterion.id,
+    name: criterion.name,
+    description: criterion.description,
+    max_points: criterion.max_points,
+    ...(criterion.presets && { presets: criterion.presets }),
+  }));
+
   const { error } = await supabase.from("rubrics").insert({
     assignment_id: assignmentId,
-    criteria,
+    criteria: criteriaWithPresets,
     created_by: userProfile.id,
   });
 
@@ -128,10 +139,21 @@ export async function updateRubric(
     };
   }
 
+  // Supabase JSONB automatically serializes the criteria array
+  // All properties including presets are preserved
+  // Verify presets are included in the criteria array
+  const criteriaWithPresets = criteria.map((criterion) => ({
+    id: criterion.id,
+    name: criterion.name,
+    description: criterion.description,
+    max_points: criterion.max_points,
+    ...(criterion.presets && { presets: criterion.presets }),
+  }));
+
   const { error } = await supabase
     .from("rubrics")
     .update({
-      criteria,
+      criteria: criteriaWithPresets,
       updated_at: new Date().toISOString(),
     })
     .eq("id", rubricId);
@@ -327,17 +349,25 @@ async function checkTAAssignment(
 ): Promise<boolean> {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  // First get the assignment to find the course_id
+  const { data: assignment, error: assignmentError } = await supabase
     .from("assignments")
-    .select(
-      `
-      course_id,
-      course_ta_assignments!inner(ta_id)
-    `
-    )
+    .select("course_id")
     .eq("id", assignmentId)
-    .eq("course_ta_assignments.ta_id", taId)
     .single();
 
-  return !!data;
+  if (assignmentError || !assignment || !assignment.course_id) {
+    return false;
+  }
+
+  // Check if TA is assigned to this course
+  const { data: taAssignment, error: taError } = await supabase
+    .from("course_ta_assignments")
+    .select("id")
+    .eq("course_id", assignment.course_id)
+    .eq("ta_id", taId)
+    .maybeSingle();
+
+  // Return true if we found a TA assignment (no error and data exists)
+  return !taError && !!taAssignment;
 }

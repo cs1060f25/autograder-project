@@ -296,6 +296,7 @@ export function SubmissionDetailModal({
           onClose();
           window.location.reload(); // Refresh to show updated grade
         }}
+        // Single submission, no navigation needed
       />
     </>
   );
