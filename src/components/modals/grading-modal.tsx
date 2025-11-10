@@ -27,19 +27,15 @@ import {
 import {
   FileText,
   Download,
-  Star,
   MessageSquare,
   User,
   Calendar,
-  Sparkles,
   Plus,
   Trash2,
   Edit3,
   Save,
   RefreshCw,
   Bot,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 
 interface GradingModalProps {
@@ -47,6 +43,9 @@ interface GradingModalProps {
   onClose: () => void;
   submissionId: string | null;
   onGradeSubmitted: () => void;
+  submissionIds?: string[];
+  currentSubmissionIndex?: number;
+  onNavigateSubmission?: (submissionId: string) => void;
 }
 
 interface SubmissionDetails {
@@ -82,6 +81,9 @@ export function GradingModal({
   onClose,
   submissionId,
   onGradeSubmitted,
+  submissionIds,
+  currentSubmissionIndex,
+  onNavigateSubmission,
 }: GradingModalProps) {
   const [submission, setSubmission] = useState<SubmissionDetails | null>(null);
   const [loading, setLoading] = useState(false);
@@ -99,13 +101,129 @@ export function GradingModal({
   const [aiGradingStatus, setAiGradingStatus] = useState<string>("pending");
   const [aiGradedAt, setAiGradedAt] = useState<string | null>(null);
   const [regeneratingAI, setRegeneratingAI] = useState(false);
-  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState<number>(
+    currentSubmissionIndex ?? 0
+  );
+  const [focusedCriterionId, setFocusedCriterionId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     if (isOpen && submissionId) {
       loadSubmissionDetails();
     }
   }, [isOpen, submissionId]);
+
+  // Update current index when submissionId changes
+  useEffect(() => {
+    if (submissionIds && submissionId) {
+      const index = submissionIds.indexOf(submissionId);
+      if (index !== -1) {
+        setCurrentIndex(index);
+      }
+    } else if (currentSubmissionIndex !== undefined) {
+      setCurrentIndex(currentSubmissionIndex);
+    }
+  }, [submissionId, submissionIds, currentSubmissionIndex]);
+
+  // Keyboard navigation handlers
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle shortcuts when typing in inputs
+      const activeElement = document.activeElement;
+      const isInputFocused =
+        activeElement?.tagName === "INPUT" ||
+        activeElement?.tagName === "TEXTAREA" ||
+        activeElement?.getAttribute("contenteditable") === "true";
+
+      // Arrow key navigation (only when not in input)
+      if (!isInputFocused && submissionIds && submissionIds.length > 1) {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          e.preventDefault();
+          const newIndex =
+            e.key === "ArrowLeft"
+              ? Math.max(0, currentIndex - 1)
+              : Math.min(submissionIds.length - 1, currentIndex + 1);
+
+          if (newIndex !== currentIndex && submissionIds[newIndex]) {
+            // Navigate to new submission
+            const newSubmissionId = submissionIds[newIndex];
+            setCurrentIndex(newIndex);
+            if (onNavigateSubmission) {
+              onNavigateSubmission(newSubmissionId);
+            }
+          }
+        }
+      }
+
+      // Number key shortcuts for presets
+      // Work when focused on a rubric input OR when in rubric section (not typing in feedback)
+      const isFeedbackInput = activeElement?.id === "feedback";
+      const isGradeInput = activeElement?.id === "grade";
+      const isRubricInput = activeElement?.id?.startsWith("score-");
+
+      // Only handle number keys for presets when in rubric context
+      // Don't interfere with typing in feedback or grade inputs
+      if (rubricCriteria.length > 0 && !isFeedbackInput && !isGradeInput) {
+        // Determine which criterion to use
+        let targetCriterionId: string | null = null;
+
+        if (isRubricInput && activeElement?.id) {
+          // Extract criterion ID from input ID (e.g., "score-123" -> "123")
+          targetCriterionId = activeElement.id.replace("score-", "");
+        } else if (!isInputFocused && focusedCriterionId) {
+          // Use focused criterion when not typing in any input
+          targetCriterionId = focusedCriterionId;
+        }
+
+        if (targetCriterionId) {
+          const criterion = rubricCriteria.find(
+            (c) => c.id === targetCriterionId
+          );
+          if (criterion && criterion.presets && criterion.presets.length > 0) {
+            const keyNum = parseInt(e.key);
+            if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= 9) {
+              const presetIndex = keyNum - 1;
+              if (criterion.presets[presetIndex]) {
+                e.preventDefault();
+                e.stopPropagation();
+                const preset = criterion.presets[presetIndex];
+                // Update rubric score directly using state setter
+                setRubricScores((prev) => ({
+                  ...prev,
+                  [criterion.id]: preset.points,
+                }));
+                // Optionally update feedback with preset description
+                if (preset.description) {
+                  setFeedback((prev) => {
+                    const existing = prev || "";
+                    return existing
+                      ? `${existing}\n\n${preset.description}`
+                      : preset.description;
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [
+    isOpen,
+    submissionIds,
+    currentIndex,
+    focusedCriterionId,
+    rubricCriteria,
+    onClose,
+    onGradeSubmitted,
+  ]);
 
   const loadSubmissionDetails = async () => {
     if (!submissionId) return;
@@ -119,6 +237,14 @@ export function GradingModal({
         setSubmission(result.submission);
         setGrade(result.submission.grade?.toString() || "");
         setFeedback(result.submission.feedback || "");
+
+        // Auto-preview PDF if exactly one PDF attachment exists
+        const pdfAttachments = result.submission.attachments.filter(
+          (file: FileAttachment) => file.name.toLowerCase().endsWith(".pdf")
+        );
+        if (pdfAttachments.length === 1 && !selectedFile) {
+          setSelectedFile(pdfAttachments[0]);
+        }
 
         // Load AI grading status
         const aiStatusResult = await getAIGradingStatus(submissionId);
@@ -312,6 +438,57 @@ export function GradingModal({
     );
   };
 
+  const addPreset = (criterionId: string) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => {
+        if (c.id === criterionId) {
+          const presets = c.presets || [];
+          if (presets.length >= 9) return c; // Max 9 presets
+          return {
+            ...c,
+            presets: [...presets, { points: 0, description: "" }],
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const removePreset = (criterionId: string, presetIndex: number) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => {
+        if (c.id === criterionId && c.presets) {
+          return {
+            ...c,
+            presets: c.presets.filter((_, i) => i !== presetIndex),
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const updatePreset = (
+    criterionId: string,
+    presetIndex: number,
+    field: "points" | "description",
+    value: number | string
+  ) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => {
+        if (c.id === criterionId && c.presets) {
+          return {
+            ...c,
+            presets: c.presets.map((p, i) =>
+              i === presetIndex ? { ...p, [field]: value } : p
+            ),
+          };
+        }
+        return c;
+      })
+    );
+  };
+
   const updateRubricScore = (criterionId: string, score: number) => {
     setRubricScores({
       ...rubricScores,
@@ -419,115 +596,31 @@ export function GradingModal({
         className="max-w-[98vw] max-h-[95vh] w-[98vw] overflow-y-auto"
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5" />
-            Grade Assignment: {submission.assignment.title}
-          </DialogTitle>
-          <DialogDescription>
-            {submission.assignment.course.code} -{" "}
-            {submission.assignment.course.name}
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* AI Suggestions Panel */}
-        {aiGradeData && aiGradingStatus === "completed" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setShowAISuggestions(!showAISuggestions)}
-                className="flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-900"
-              >
-                <Bot className="h-4 w-4" />
-                AI Suggestions
-                {showAISuggestions ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <DialogTitle className="flex items-center gap-2">
+                Grade Assignment: {submission.assignment.title}
+              </DialogTitle>
+              <DialogDescription>
+                {submission.assignment.course.code} -{" "}
+                {submission.assignment.course.name}
+                {submissionIds && submissionIds.length > 1 && (
+                  <span className="ml-2 text-blue-600">
+                    ({currentIndex + 1} of {submissionIds.length})
+                  </span>
                 )}
-              </button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRegenerateAI}
-                disabled={regeneratingAI}
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 mr-2 ${
-                    regeneratingAI ? "animate-spin" : ""
-                  }`}
-                />
-                {regeneratingAI ? "Regenerating..." : "Regenerate AI Grade"}
-              </Button>
+              </DialogDescription>
             </div>
-
-            {showAISuggestions && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
-                <div className="flex items-center gap-2 text-sm text-blue-800">
-                  <Sparkles className="h-4 w-4" />
-                  <span>AI-Generated Scores and Feedback</span>
-                  {aiGradedAt && (
-                    <span className="text-xs text-blue-600 ml-auto">
-                      Generated: {new Date(aiGradedAt).toLocaleString()}
-                    </span>
-                  )}
+            <div className="flex flex-col gap-1 text-xs mt-4 text-gray-500">
+              {submissionIds && submissionIds.length > 1 && (
+                <div className="flex items-center gap-1">
+                  <span>← →</span>
+                  <span>Navigate</span>
                 </div>
-
-                {/* AI Rubric Scores */}
-                <div className="space-y-3">
-                  {aiGradeData.items.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="bg-white rounded-lg p-3 border border-blue-100"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">
-                          {item.label}
-                        </h4>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
-                            {item.points} / {item.maxPoints} points
-                          </span>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
-                            AI Generated
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-700 mb-2">
-                        {item.comments}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* AI Overall Feedback */}
-                {aiGradeData.overallFeedback && (
-                  <div className="bg-white rounded-lg p-3 border border-blue-100">
-                    <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      Overall AI Feedback
-                    </h4>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {aiGradeData.overallFeedback}
-                    </p>
-                  </div>
-                )}
-
-                <div className="bg-blue-100 rounded-lg p-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="font-medium text-blue-800">
-                      AI Total Score:
-                    </span>
-                    <span className="font-bold text-blue-900">
-                      {aiGradeData.totalAwarded} / {aiGradeData.totalPossible}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        )}
+        </DialogHeader>
 
         {/* AI Grading Status */}
         {aiGradingStatus === "pending" && (
@@ -555,27 +648,6 @@ export function GradingModal({
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 min-h-0">
           {/* Left Column - Assignment Details and PDF Viewer */}
           <div className="space-y-4 xl:col-span-3">
-            {/* Student Info */}
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium mb-2 flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Student Information
-              </h3>
-              <p className="text-sm">
-                {submission.student.first_name} {submission.student.last_name}
-              </p>
-              <p className="text-xs text-gray-500">
-                {submission.student.email}
-              </p>
-              <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                <Calendar className="h-3 w-3" />
-                Submitted:{" "}
-                {submission.submitted_at
-                  ? new Date(submission.submitted_at).toLocaleDateString()
-                  : "Unknown"}
-              </p>
-            </div>
-
             {/* Assignment Instructions */}
             {submission.assignment.instructions && (
               <div className="p-4 bg-blue-50 rounded-lg">
@@ -627,18 +699,12 @@ export function GradingModal({
               </div>
             )}
 
-            {/* PDF Viewer */}
             {selectedFile && (
-              <div className="space-y-2">
-                <h3 className="font-medium">PDF Viewer</h3>
-                <div className="border rounded-lg overflow-hidden">
-                  <iframe
-                    src={selectedFile.url}
-                    className="w-full h-[70vh] min-h-[600px]"
-                    title="PDF Viewer"
-                  />
-                </div>
-              </div>
+              <iframe
+                src={selectedFile.url + "#toolbar=0"}
+                className="w-full h-[70vh] min-h-[600px]"
+                title="PDF Viewer"
+              />
             )}
 
             {/* Text Content */}
@@ -656,37 +722,44 @@ export function GradingModal({
 
           {/* Right Column - Grading Form */}
           <div className="space-y-4 xl:col-span-2">
-            <div className="p-4 bg-yellow-50 rounded-lg">
-              <h3 className="font-medium mb-2">Assignment Details</h3>
-              <p className="text-sm">
-                <strong>Max Points:</strong> {submission.assignment.max_points}
-              </p>
-              <p className="text-sm">
-                <strong>Due Date:</strong>{" "}
-                {new Date(submission.assignment.due_date).toLocaleDateString()}
-              </p>
-            </div>
-
-            {/* Grading Form */}
             <div className="space-y-4">
               {rubric && rubricCriteria.length > 0 ? (
-                // Rubric-based grading
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Rubric Grading</h3>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingRubric(!editingRubric)}
-                    >
-                      <Edit3 className="h-4 w-4 mr-2" />
-                      {editingRubric ? "Cancel Edit" : "Edit Rubric"}
-                    </Button>
+                    <h3 className="text-lg font-semibold">Grading Rubric</h3>
+                    <div className="flex items-center gap-2">
+                      {aiGradingStatus === "completed" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRegenerateAI}
+                          disabled={regeneratingAI}
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                        >
+                          <RefreshCw
+                            className={`h-4 w-4 mr-2 ${
+                              regeneratingAI ? "animate-spin" : ""
+                            }`}
+                          />
+                          {regeneratingAI
+                            ? "Regenerating..."
+                            : "Regenerate Grade"}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingRubric(!editingRubric)}
+                      >
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        {editingRubric ? "Cancel Edit" : "Edit Rubric"}
+                      </Button>
+                    </div>
                   </div>
 
                   {editingRubric ? (
-                    // Rubric editing mode
                     <div className="space-y-4">
                       <p className="text-sm text-gray-600">
                         Edit the rubric criteria. Changes will be saved to the
@@ -760,6 +833,90 @@ export function GradingModal({
                               placeholder="10"
                             />
                           </div>
+                          <div className="space-y-2 pt-2 border-t">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-medium">
+                                Scoring Presets
+                              </Label>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => addPreset(criterion.id)}
+                                disabled={(criterion.presets?.length || 0) >= 9}
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Add Preset
+                              </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              Define preset scores that can be quickly applied
+                              during grading.
+                            </p>
+                            {criterion.presets &&
+                              criterion.presets.length > 0 && (
+                                <div className="space-y-2">
+                                  {criterion.presets.map(
+                                    (preset, presetIndex) => (
+                                      <div
+                                        key={presetIndex}
+                                        className="flex items-center gap-2 p-2  rounded"
+                                      >
+                                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-medium flex-shrink-0">
+                                          {presetIndex + 1}
+                                        </div>
+                                        <div className="flex-1 grid grid-cols-2 gap-2">
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            max={criterion.max_points}
+                                            value={preset.points}
+                                            onChange={(e) =>
+                                              updatePreset(
+                                                criterion.id,
+                                                presetIndex,
+                                                "points",
+                                                parseInt(e.target.value) || 0
+                                              )
+                                            }
+                                            placeholder="Points"
+                                            className="h-8"
+                                          />
+                                          <Input
+                                            type="text"
+                                            value={preset.description}
+                                            onChange={(e) =>
+                                              updatePreset(
+                                                criterion.id,
+                                                presetIndex,
+                                                "description",
+                                                e.target.value
+                                              )
+                                            }
+                                            placeholder="Description (optional)"
+                                            className="h-8"
+                                          />
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() =>
+                                            removePreset(
+                                              criterion.id,
+                                              presetIndex
+                                            )
+                                          }
+                                          className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              )}
+                          </div>
                         </div>
                       ))}
 
@@ -796,45 +953,154 @@ export function GradingModal({
                   ) : (
                     // Rubric scoring mode
                     <div className="space-y-4">
-                      {rubricCriteria.map((criterion, index) => (
-                        <div
-                          key={criterion.id}
-                          className="p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">{criterion.name}</h4>
-                            <span className="text-sm text-gray-500">
-                              {rubricScores[criterion.id] || 0} /{" "}
-                              {criterion.max_points} points
-                            </span>
+                      {rubricCriteria.map((criterion, index) => {
+                        // Get AI feedback for this criterion
+                        const aiItem = aiGradeData?.items.find(
+                          (item) => item.id === criterion.id
+                        );
+                        const hasAIFeedback =
+                          aiItem && aiGradingStatus === "completed";
+
+                        return (
+                          <div
+                            key={criterion.id}
+                            className={`p-4 border rounded-lg ${
+                              hasAIFeedback
+                                ? "bg-blue-50/30 border-blue-200"
+                                : ""
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium">{criterion.name}</h4>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-500">
+                                  {rubricScores[criterion.id] || 0} /{" "}
+                                  {criterion.max_points} points
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-3">
+                              {criterion.description}
+                            </p>
+
+                            {hasAIFeedback && (
+                              <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Bot className="h-3 w-3 text-blue-600" />
+                                  <span className="text-xs font-medium text-blue-800">
+                                    AI Suggestion: {aiItem.points} /{" "}
+                                    {aiItem.maxPoints} points
+                                  </span>
+                                </div>
+                                {aiItem.comments && (
+                                  <p className="text-xs text-blue-700">
+                                    {aiItem.comments}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {criterion.presets &&
+                              criterion.presets.length > 0 && (
+                                <div className="mb-3 space-y-2">
+                                  {criterion.presets.map(
+                                    (preset, presetIndex) => {
+                                      const currentScore =
+                                        rubricScores[criterion.id] || 0;
+                                      const isSelected =
+                                        currentScore === preset.points;
+
+                                      return (
+                                        <button
+                                          key={presetIndex}
+                                          type="button"
+                                          onClick={() => {
+                                            updateRubricScore(
+                                              criterion.id,
+                                              preset.points
+                                            );
+                                            if (preset.description) {
+                                              setFeedback((prev) => {
+                                                const existing = prev || "";
+                                                return existing
+                                                  ? `${existing}\n\n${preset.description}`
+                                                  : preset.description;
+                                              });
+                                            }
+                                          }}
+                                          className={`w-full flex items-center gap-2 px-3 py-2 text-sm border rounded text-left transition-colors cursor-pointer ${
+                                            isSelected
+                                              ? "bg-blue-100 hover:bg-blue-200 border-blue-400"
+                                              : "hover:bg-gray-100 border-gray-300"
+                                          }`}
+                                        >
+                                          <span
+                                            className={`flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-medium flex-shrink-0 ${
+                                              isSelected
+                                                ? "bg-blue-700"
+                                                : "bg-blue-600"
+                                            }`}
+                                          >
+                                            {presetIndex + 1}
+                                          </span>
+                                          <div className="flex-1 min-w-0">
+                                            <div
+                                              className={`font-medium ${
+                                                isSelected
+                                                  ? "text-blue-900"
+                                                  : "text-gray-900"
+                                              }`}
+                                            >
+                                              {preset.points} points
+                                            </div>
+                                            {preset.description && (
+                                              <div
+                                                className={`text-xs mt-0.5 ${
+                                                  isSelected
+                                                    ? "text-blue-700"
+                                                    : "text-gray-600"
+                                                }`}
+                                              >
+                                                {preset.description}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </button>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              )}
+
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor={`score-${criterion.id}`}>
+                                Score:
+                              </Label>
+                              <Input
+                                id={`score-${criterion.id}`}
+                                type="number"
+                                min="0"
+                                max={criterion.max_points}
+                                value={rubricScores[criterion.id] || 0}
+                                onChange={(e) =>
+                                  updateRubricScore(
+                                    criterion.id,
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                                onFocus={() =>
+                                  setFocusedCriterionId(criterion.id)
+                                }
+                                onBlur={() => setFocusedCriterionId(null)}
+                                className="w-20"
+                              />
+                              <span className="text-sm text-gray-500">
+                                / {criterion.max_points}
+                              </span>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600 mb-3">
-                            {criterion.description}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <Label htmlFor={`score-${criterion.id}`}>
-                              Score:
-                            </Label>
-                            <Input
-                              id={`score-${criterion.id}`}
-                              type="number"
-                              min="0"
-                              max={criterion.max_points}
-                              value={rubricScores[criterion.id] || 0}
-                              onChange={(e) =>
-                                updateRubricScore(
-                                  criterion.id,
-                                  parseInt(e.target.value) || 0
-                                )
-                              }
-                              className="w-20"
-                            />
-                            <span className="text-sm text-gray-500">
-                              / {criterion.max_points}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       <div className="p-3 bg-blue-50 rounded-lg">
                         <div className="flex justify-between items-center">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,7 @@ import {
   createAssignmentAction,
   updateAssignmentAction,
 } from "@/lib/assignment-actions";
+import { getRubricByAssignment } from "@/lib/rubric-actions";
 import { Assignment, Course, RubricCriterion } from "@/lib/data-utils";
 import { Plus, Trash2, FileText } from "lucide-react";
 
@@ -49,6 +50,34 @@ export function AssignmentModal({
   const [maxPoints, setMaxPoints] = useState(assignment?.max_points || 100);
   const router = useRouter();
 
+  // Load existing rubric when editing
+  useEffect(() => {
+    const loadExistingRubric = async () => {
+      if (mode === "edit" && assignment?.id && isOpen) {
+        try {
+          const rubricResult = await getRubricByAssignment(assignment.id);
+          if (rubricResult.success && rubricResult.rubric) {
+            setRubricCriteria(rubricResult.rubric.criteria);
+            setShowRubric(rubricResult.rubric.criteria.length > 0);
+          } else {
+            setRubricCriteria([]);
+            setShowRubric(false);
+          }
+        } catch (error) {
+          console.error("Failed to load rubric:", error);
+          setRubricCriteria([]);
+          setShowRubric(false);
+        }
+      } else if (mode === "create") {
+        // Reset for create mode
+        setRubricCriteria([]);
+        setShowRubric(false);
+      }
+    };
+
+    loadExistingRubric();
+  }, [mode, assignment?.id, isOpen]);
+
   const addCriterion = () => {
     const newCriterion: RubricCriterion = {
       id: Date.now().toString(),
@@ -70,6 +99,57 @@ export function AssignmentModal({
   ) => {
     setRubricCriteria(
       rubricCriteria.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  };
+
+  const addPreset = (criterionId: string) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => {
+        if (c.id === criterionId) {
+          const presets = c.presets || [];
+          if (presets.length >= 9) return c; // Max 9 presets
+          return {
+            ...c,
+            presets: [...presets, { points: 0, description: "" }],
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const removePreset = (criterionId: string, presetIndex: number) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => {
+        if (c.id === criterionId && c.presets) {
+          return {
+            ...c,
+            presets: c.presets.filter((_, i) => i !== presetIndex),
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const updatePreset = (
+    criterionId: string,
+    presetIndex: number,
+    field: "points" | "description",
+    value: number | string
+  ) => {
+    setRubricCriteria(
+      rubricCriteria.map((c) => {
+        if (c.id === criterionId && c.presets) {
+          return {
+            ...c,
+            presets: c.presets.map((p, i) =>
+              i === presetIndex ? { ...p, [field]: value } : p
+            ),
+          };
+        }
+        return c;
+      })
     );
   };
 
@@ -385,6 +465,86 @@ export function AssignmentModal({
                           placeholder="10"
                           required
                         />
+                      </div>
+
+                      {/* Presets Section */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">
+                            Scoring Presets
+                          </Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addPreset(criterion.id)}
+                            disabled={(criterion.presets?.length || 0) >= 9}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Preset
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Define preset scores that can be quickly applied
+                          during grading.
+                        </p>
+                        {criterion.presets && criterion.presets.length > 0 && (
+                          <div className="space-y-2">
+                            {criterion.presets.map((preset, presetIndex) => (
+                              <div
+                                key={presetIndex}
+                                className="flex items-center gap-2 p-2 bg-gray-50 rounded border"
+                              >
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-medium flex-shrink-0">
+                                  {presetIndex + 1}
+                                </div>
+                                <div className="flex-1 grid grid-cols-2 gap-2">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={criterion.max_points}
+                                    value={preset.points}
+                                    onChange={(e) =>
+                                      updatePreset(
+                                        criterion.id,
+                                        presetIndex,
+                                        "points",
+                                        parseInt(e.target.value) || 0
+                                      )
+                                    }
+                                    placeholder="Points"
+                                    className="h-8"
+                                  />
+                                  <Input
+                                    type="text"
+                                    value={preset.description}
+                                    onChange={(e) =>
+                                      updatePreset(
+                                        criterion.id,
+                                        presetIndex,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Description (optional)"
+                                    className="h-8"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    removePreset(criterion.id, presetIndex)
+                                  }
+                                  className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
