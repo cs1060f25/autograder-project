@@ -31,6 +31,11 @@ This feature allows instructors to toggle whether students can view score distri
 - Instructors can enable/disable score distribution visibility for students
 - Uses new `Switch` component from shadcn/ui
 - Real-time toggle with loading state
+- **Instructor Distribution View**: Instructors can always see the score distribution for their assignments
+  - Displays comprehensive statistics card with mean, median, std dev, min, max
+  - Shows quartiles (Q1, Q2, Q3) with visual separators
+  - Interactive histogram with gradient bars showing count and percentage
+  - Automatically loads when there are graded submissions
 
 #### 2. Student UI (`src/components/modals/submission-modal.tsx`)
 - Enhanced submission modal to display score distribution when:
@@ -53,9 +58,13 @@ This feature allows instructors to toggle whether students can view score distri
 
 ### For Instructors
 1. Navigate to an assignment detail page
-2. Locate the "Show Score Distribution to Students" toggle at the bottom of the assignment info card
-3. Toggle on to allow students to see class statistics
-4. Toggle off to hide statistics from students
+2. **View Distribution**: Automatically see the score distribution card (appears when there are graded submissions)
+   - View comprehensive statistics including mean, median, standard deviation, min, max
+   - See quartile breakdown (Q1, Q2, Q3)
+   - Analyze the histogram showing score ranges and percentages
+3. **Control Student Visibility**: Locate the "Show Score Distribution to Students" toggle at the bottom of the assignment info card
+   - Toggle on to allow students to see class statistics
+   - Toggle off to hide statistics from students (instructors can still see it)
 
 ### For Students
 1. View a graded assignment submission

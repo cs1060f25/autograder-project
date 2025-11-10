@@ -8,6 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SubmissionDetailModal } from "@/components/modals/submission-detail-modal";
 import { toggleScoreDistribution } from "@/lib/assignment-actions";
+import { ScoreDistribution, getScoreDistribution } from "@/lib/data-utils";
+import { useEffect } from "react";
 import {
   FileText,
   Users,
@@ -80,6 +82,28 @@ export function AssignmentDetailContent({
     assignment.show_score_distribution || false
   );
   const [isTogglingDistribution, setIsTogglingDistribution] = useState(false);
+  const [scoreDistribution, setScoreDistribution] = useState<ScoreDistribution | null>(null);
+  const [loadingDistribution, setLoadingDistribution] = useState(false);
+
+  // Load score distribution when there are graded submissions
+  useEffect(() => {
+    if (stats.graded > 0) {
+      loadScoreDistribution();
+    }
+  }, [stats.graded, assignment.id]);
+
+  const loadScoreDistribution = async () => {
+    setLoadingDistribution(true);
+    try {
+      const distribution = await getScoreDistribution(assignment.id);
+      setScoreDistribution(distribution);
+    } catch (error) {
+      console.error("Failed to load score distribution:", error);
+      setScoreDistribution(null);
+    } finally {
+      setLoadingDistribution(false);
+    }
+  };
 
   const formatGrade = (grade: number | null, maxPoints: number) => {
     if (grade === null) return "Not graded";
@@ -274,6 +298,138 @@ export function AssignmentDetailContent({
             </CardContent>
           </Card>
         </div>
+
+        {/* Score Distribution Card */}
+        {scoreDistribution && stats.graded > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-purple-600" />
+                  <CardTitle>Score Distribution</CardTitle>
+                </div>
+                <Badge variant="outline" className="text-purple-700">
+                  {scoreDistribution.totalGraded} graded
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Summary Statistics */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1 font-medium">Mean</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {scoreDistribution.mean}
+                      <span className="text-sm text-purple-600 ml-1">
+                        / {assignment.max_points}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1 font-medium">Median</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {scoreDistribution.median}
+                      <span className="text-sm text-purple-600 ml-1">
+                        / {assignment.max_points}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1 font-medium">Std Dev</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {scoreDistribution.stdDev}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1 font-medium">Min</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {scoreDistribution.min}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1 font-medium">Max</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {scoreDistribution.max}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quartiles */}
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-100">
+                  <p className="text-sm font-medium text-purple-800 mb-3">Quartiles</p>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-center flex-1">
+                      <p className="text-xs text-purple-600 mb-1">Q1 (25th)</p>
+                      <p className="text-xl font-bold text-purple-900">
+                        {scoreDistribution.quartiles.q1}
+                      </p>
+                    </div>
+                    <div className="h-12 w-px bg-purple-300"></div>
+                    <div className="text-center flex-1">
+                      <p className="text-xs text-purple-600 mb-1">Q2 (50th)</p>
+                      <p className="text-xl font-bold text-purple-900">
+                        {scoreDistribution.quartiles.q2}
+                      </p>
+                    </div>
+                    <div className="h-12 w-px bg-purple-300"></div>
+                    <div className="text-center flex-1">
+                      <p className="text-xs text-purple-600 mb-1">Q3 (75th)</p>
+                      <p className="text-xl font-bold text-purple-900">
+                        {scoreDistribution.quartiles.q3}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Histogram */}
+                <div>
+                  <p className="text-sm font-medium text-purple-800 mb-3">
+                    Score Distribution Histogram
+                  </p>
+                  <div className="space-y-2">
+                    {scoreDistribution.histogram.map((bin) => {
+                      const percentage = (bin.count / scoreDistribution.totalGraded) * 100;
+                      return (
+                        <div key={bin.range} className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-purple-700 w-20">
+                            {bin.range}
+                          </span>
+                          <div className="flex-1 bg-purple-100 rounded-full h-8 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all flex items-center justify-end pr-2"
+                              style={{ width: `${Math.max(percentage, 2)}%` }}
+                            >
+                              {bin.count > 0 && (
+                                <span className="text-xs font-medium text-white">
+                                  {bin.count}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-sm text-purple-700 w-16 text-right">
+                            {percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {loadingDistribution && (
+          <Card>
+            <CardContent className="py-8">
+              <div className="flex items-center justify-center gap-2 text-purple-600">
+                <BarChart3 className="h-5 w-5 animate-pulse" />
+                <p className="text-sm">Loading score distribution...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Submissions List */}
         <Card>
