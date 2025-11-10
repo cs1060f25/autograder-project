@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth-actions";
 import { UserProfile, UserRole } from "@/lib/user-utils";
-import { BookOpen, GraduationCap, Users, LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { RoleGuard } from "./role-guard";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
@@ -42,9 +43,11 @@ export function DashboardLayout({
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <h1 className="text-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent font-bold">
-                  AI Grading Platform
-                </h1>
+                <Link href="/">
+                  <h1 className="text-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent font-bold hover:opacity-80 transition-opacity cursor-pointer">
+                    AI Grading Platform
+                  </h1>
+                </Link>
               </div>
             </div>
 
