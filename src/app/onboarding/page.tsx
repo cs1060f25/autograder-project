@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -50,10 +51,12 @@ export default async function OnboardingPage() {
     if (!user) return;
 
     const role = formData.get("role") as string;
+    const phone = formData.get("phone") as string;
     await supabase
       .from("users")
       .update({
         role,
+        phone: phone || null,
         onboarding_completed: true,
         updated_at: new Date().toISOString(),
       })
@@ -86,6 +89,15 @@ export default async function OnboardingPage() {
                     <SelectItem value="student">Student</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid gap-3">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                />
               </div>
             </div>
 

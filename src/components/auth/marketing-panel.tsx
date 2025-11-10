@@ -100,7 +100,7 @@ export function MarketingPanel() {
 
       <div className="pt-4">
         <p className="text-sm text-gray-500">
-          Created by Evan Jiang, Andrew Zhao, and Jackson Moody
+          Created by John Ho, Evan Jiang, Jackson Moody, and Andrew Zhao
         </p>
       </div>
     </div>
