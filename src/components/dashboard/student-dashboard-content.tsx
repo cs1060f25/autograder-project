@@ -293,6 +293,8 @@ export function StudentDashboardContent({
           studentId={studentId}
           instructions={selectedAssignment.instructions || undefined}
           submissionId={selectedAssignment.submission?.id}
+          showScoreDistribution={selectedAssignment.show_score_distribution}
+          maxPoints={selectedAssignment.max_points}
           existingSubmission={
             selectedAssignment.submission
               ? {

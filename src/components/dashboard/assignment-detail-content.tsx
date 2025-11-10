@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { SubmissionDetailModal } from "@/components/modals/submission-detail-modal";
+import { toggleScoreDistribution } from "@/lib/assignment-actions";
 import {
   FileText,
   Users,
@@ -14,6 +17,7 @@ import {
   Eye,
   Calendar,
   Award,
+  BarChart3,
 } from "lucide-react";
 
 interface Student {
@@ -46,6 +50,7 @@ interface Assignment {
   due_date: string;
   status: string;
   assignment_type: string;
+  show_score_distribution?: boolean;
   course?: {
     id: string;
     name: string;
@@ -71,6 +76,10 @@ export function AssignmentDetailContent({
 }: AssignmentDetailContentProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showDistribution, setShowDistribution] = useState(
+    assignment.show_score_distribution || false
+  );
+  const [isTogglingDistribution, setIsTogglingDistribution] = useState(false);
 
   const formatGrade = (grade: number | null, maxPoints: number) => {
     if (grade === null) return "Not graded";
@@ -99,6 +108,22 @@ export function AssignmentDetailContent({
   const handleViewSubmission = (submission: Submission) => {
     setSelectedSubmission(submission);
     setIsModalOpen(true);
+  };
+
+  const handleToggleDistribution = async (checked: boolean) => {
+    setIsTogglingDistribution(true);
+    try {
+      const result = await toggleScoreDistribution(assignment.id, checked);
+      if (result.success) {
+        setShowDistribution(checked);
+      } else {
+        console.error("Failed to toggle distribution:", result.error);
+      }
+    } catch (error) {
+      console.error("Error toggling distribution:", error);
+    } finally {
+      setIsTogglingDistribution(false);
+    }
   };
 
   return (
@@ -173,6 +198,29 @@ export function AssignmentDetailContent({
                 </p>
               </div>
             )}
+            
+            {/* Score Distribution Toggle */}
+            <div className="pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <Label htmlFor="score-distribution" className="text-sm font-medium">
+                      Show Score Distribution to Students
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Allow students to see class statistics for this assignment
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="score-distribution"
+                  checked={showDistribution}
+                  onCheckedChange={handleToggleDistribution}
+                  disabled={isTogglingDistribution}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 

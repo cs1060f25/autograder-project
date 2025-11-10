@@ -18,6 +18,7 @@ export interface Assignment {
   attachments: any[];
   created_at: string;
   updated_at: string;
+  show_score_distribution?: boolean;
   course?: {
     id: string;
     name: string;
@@ -508,5 +509,99 @@ export async function getInstructorData(userProfile: UserProfile): Promise<{
       active_assignments: activeAssignments,
       average_grade: overallAverage,
     },
+  };
+}
+
+// Score Distribution Data
+export interface ScoreDistribution {
+  mean: number;
+  median: number;
+  min: number;
+  max: number;
+  stdDev: number;
+  quartiles: {
+    q1: number;
+    q2: number;
+    q3: number;
+  };
+  histogram: {
+    range: string;
+    count: number;
+  }[];
+  totalGraded: number;
+}
+
+export async function getScoreDistribution(
+  assignmentId: string
+): Promise<ScoreDistribution | null> {
+  const supabase = await createClient();
+
+  // Get all graded submissions for this assignment
+  const { data: submissions, error } = await supabase
+    .from("submissions")
+    .select("grade")
+    .eq("assignment_id", assignmentId)
+    .eq("status", "graded")
+    .not("grade", "is", null);
+
+  if (error || !submissions || submissions.length === 0) {
+    return null;
+  }
+
+  const grades = submissions.map((s) => s.grade as number).sort((a, b) => a - b);
+  const n = grades.length;
+
+  // Calculate mean
+  const mean = grades.reduce((sum, grade) => sum + grade, 0) / n;
+
+  // Calculate median
+  const median =
+    n % 2 === 0
+      ? (grades[n / 2 - 1] + grades[n / 2]) / 2
+      : grades[Math.floor(n / 2)];
+
+  // Calculate min and max
+  const min = grades[0];
+  const max = grades[n - 1];
+
+  // Calculate standard deviation
+  const variance =
+    grades.reduce((sum, grade) => sum + Math.pow(grade - mean, 2), 0) / n;
+  const stdDev = Math.sqrt(variance);
+
+  // Calculate quartiles
+  const q1Index = Math.floor(n * 0.25);
+  const q2Index = Math.floor(n * 0.5);
+  const q3Index = Math.floor(n * 0.75);
+
+  const q1 = grades[q1Index];
+  const q2 = median;
+  const q3 = grades[q3Index];
+
+  // Create histogram (10-point ranges: 0-9, 10-19, ..., 90-100)
+  const histogram: { range: string; count: number }[] = [];
+  for (let i = 0; i < 10; i++) {
+    const start = i * 10;
+    const end = i === 9 ? 100 : (i + 1) * 10 - 1;
+    const count = grades.filter((g) => g >= start && g <= end).length;
+    histogram.push({
+      range: `${start}-${end}`,
+      count,
+    });
+  }
+
+  return {
+    mean: Math.round(mean * 100) / 100,
+    median: Math.round(median * 100) / 100,
+    min: Math.round(min * 100) / 100,
+    max: Math.round(max * 100) / 100,
+    stdDev: Math.round(stdDev * 100) / 100,
+    quartiles: {
+      q1: Math.round(q1 * 100) / 100,
+      q2: Math.round(q2 * 100) / 100,
+      q3: Math.round(q3 * 100) / 100,
+    },
+    histogram,
+    totalGraded: n,
   };
 }

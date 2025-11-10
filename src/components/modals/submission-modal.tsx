@@ -17,9 +17,9 @@ import {
   uploadFileToStorage,
   deleteFileFromStorage,
 } from "@/lib/submission-actions";
-import { Rubric, RubricCriterion, RubricScores } from "@/lib/data-utils";
+import { Rubric, RubricCriterion, RubricScores, ScoreDistribution, getScoreDistribution } from "@/lib/data-utils";
 import { getRubricByAssignment, getRubricScores } from "@/lib/rubric-actions";
-import { Upload, X, FileText, Send, Star, CheckCircle } from "lucide-react";
+import { Upload, X, FileText, Send, Star, CheckCircle, BarChart3 } from "lucide-react";
 
 interface SubmissionModalProps {
   isOpen: boolean;
@@ -30,6 +30,8 @@ interface SubmissionModalProps {
   studentId: string;
   instructions?: string;
   submissionId?: string; // Add submission ID for AI grading status
+  showScoreDistribution?: boolean;
+  maxPoints?: number;
   existingSubmission?: {
     content: string;
     attachments: FileAttachment[];
@@ -49,6 +51,8 @@ export function SubmissionModal({
   studentId,
   instructions,
   submissionId,
+  showScoreDistribution,
+  maxPoints,
   existingSubmission,
 }: SubmissionModalProps) {
   const [content, setContent] = useState(existingSubmission?.content || "");
@@ -62,6 +66,8 @@ export function SubmissionModal({
   const [rubricScores, setRubricScores] = useState<RubricScores | null>(null);
   const [loadingRubric, setLoadingRubric] = useState(false);
   const [rubric, setRubric] = useState<Rubric | null>(null);
+  const [scoreDistribution, setScoreDistribution] = useState<ScoreDistribution | null>(null);
+  const [loadingDistribution, setLoadingDistribution] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load rubric always; scores only when graded
@@ -75,11 +81,19 @@ export function SubmissionModal({
     ) {
       loadRubricScores();
     }
+    // Load score distribution if enabled and graded
+    if (
+      showScoreDistribution &&
+      existingSubmission?.status === "graded"
+    ) {
+      loadScoreDistribution();
+    }
   }, [
     isOpen,
     existingSubmission?.status,
     existingSubmission?.grade,
     submissionId,
+    showScoreDistribution,
   ]);
 
   const loadRubricScores = async () => {
@@ -115,6 +129,19 @@ export function SubmissionModal({
       setRubric(null);
     } finally {
       setLoadingRubric(false);
+    }
+  };
+
+  const loadScoreDistribution = async () => {
+    setLoadingDistribution(true);
+    try {
+      const distribution = await getScoreDistribution(assignmentId);
+      setScoreDistribution(distribution);
+    } catch (error) {
+      console.error("Failed to load score distribution:", error);
+      setScoreDistribution(null);
+    } finally {
+      setLoadingDistribution(false);
     }
   };
 
@@ -347,6 +374,110 @@ export function SubmissionModal({
                 </p>
               </div>
             )}
+
+          {/* Score Distribution Display */}
+          {showScoreDistribution &&
+            existingSubmission?.status === "graded" &&
+            scoreDistribution && (
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <BarChart3 className="h-5 w-5 text-purple-600" />
+                  <h4 className="font-medium text-purple-800">
+                    Class Score Distribution
+                  </h4>
+                </div>
+                
+                {/* Summary Statistics */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div className="bg-white p-3 rounded border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1">Mean</p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {scoreDistribution.mean}
+                      {maxPoints && ` / ${maxPoints}`}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1">Median</p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {scoreDistribution.median}
+                      {maxPoints && ` / ${maxPoints}`}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1">Std Dev</p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {scoreDistribution.stdDev}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded border border-purple-100">
+                    <p className="text-xs text-purple-600 mb-1">Total Graded</p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {scoreDistribution.totalGraded}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quartiles */}
+                <div className="mb-4">
+                  <p className="text-xs text-purple-600 mb-2">Quartiles</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-purple-700">
+                      Q1: {scoreDistribution.quartiles.q1}
+                    </span>
+                    <span className="text-purple-400">|</span>
+                    <span className="text-purple-700">
+                      Q2: {scoreDistribution.quartiles.q2}
+                    </span>
+                    <span className="text-purple-400">|</span>
+                    <span className="text-purple-700">
+                      Q3: {scoreDistribution.quartiles.q3}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Histogram */}
+                <div>
+                  <p className="text-xs text-purple-600 mb-2">Score Distribution</p>
+                  <div className="space-y-1">
+                    {scoreDistribution.histogram.map((bin) => {
+                      const percentage = (bin.count / scoreDistribution.totalGraded) * 100;
+                      return (
+                        <div key={bin.range} className="flex items-center gap-2">
+                          <span className="text-xs text-purple-700 w-16">
+                            {bin.range}
+                          </span>
+                          <div className="flex-1 bg-purple-100 rounded-full h-4 overflow-hidden">
+                            <div
+                              className="bg-purple-500 h-full transition-all"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-purple-700 w-12 text-right">
+                            {bin.count} ({percentage.toFixed(0)}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Your Position */}
+                {existingSubmission.grade !== undefined && maxPoints && (
+                  <div className="mt-4 pt-4 border-t border-purple-200">
+                    <p className="text-sm text-purple-700">
+                      <strong>Your Score:</strong> {existingSubmission.grade} / {maxPoints}
+                      {" "}({((existingSubmission.grade / maxPoints) * 100).toFixed(1)}%)
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+          {loadingDistribution && showScoreDistribution && (
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-sm text-purple-600">Loading score distribution...</p>
+            </div>
+          )}
 
           {/* File Upload */}
           <div className="space-y-2">

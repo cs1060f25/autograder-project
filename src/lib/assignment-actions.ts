@@ -359,3 +359,33 @@ export async function getAssignmentWithSubmissions(assignmentId: string) {
     },
   };
 }
+
+export async function toggleScoreDistribution(
+  assignmentId: string,
+  showDistribution: boolean
+) {
+  const userProfile = await requireAuth();
+
+  if (userProfile.role !== "instructor") {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("assignments")
+    .update({
+      show_score_distribution: showDistribution,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", assignmentId)
+    .eq("instructor_id", userProfile.id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/dashboard/instructor");
+  revalidatePath(`/dashboard/instructor/assignments/${assignmentId}`);
+  return { success: true, error: null };
+}
