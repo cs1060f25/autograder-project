@@ -13,6 +13,15 @@ export async function signUp(formData: FormData) {
     redirect("/signup?error=Passwords do not match");
   }
 
+  const phoneNumber = formData.get("phoneNumber") as string;
+  const phoneConsent = formData.get("phoneConsent") === "true";
+  const phoneCountryCode = formData.get("phoneCountryCode") as string;
+
+  // Validate phone consent if phone number is provided
+  if (phoneNumber && !phoneConsent) {
+    redirect("/signup?error=You must agree to be contacted if providing a phone number");
+  }
+
   const data = {
     email: formData.get("email") as string,
     password: password,
@@ -20,6 +29,9 @@ export async function signUp(formData: FormData) {
       data: {
         first_name: formData.get("firstName") as string,
         last_name: formData.get("lastName") as string,
+        phone_number: phoneNumber || null,
+        phone_consent: phoneConsent,
+        phone_country_code: phoneCountryCode || "US",
       },
     },
   };

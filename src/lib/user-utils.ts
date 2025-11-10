@@ -12,6 +12,9 @@ export interface UserProfile {
   last_name: string;
   role: UserRole;
   onboarding_completed: boolean;
+  phone_number?: string | null;
+  phone_consent?: boolean;
+  phone_country_code?: string;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +47,9 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     last_name: userData.last_name || "",
     role: userData.role as UserRole,
     onboarding_completed: userData.onboarding_completed || false,
+    phone_number: userData.phone_number || null,
+    phone_consent: userData.phone_consent || false,
+    phone_country_code: userData.phone_country_code || "US",
     created_at: userData.created_at,
     updated_at: userData.updated_at,
   };

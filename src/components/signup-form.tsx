@@ -1,3 +1,5 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,13 +11,42 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { signUp, signInWithGoogle, signInWithGitHub } from "@/lib/auth-actions";
 import { Github } from "lucide-react";
+import { useState } from "react";
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("US");
+  const [phoneConsent, setPhoneConsent] = useState(false);
+  const [phoneValid, setPhoneValid] = useState(true);
+  const [consentError, setConsentError] = useState("");
+
+  const handlePhoneChange = (value: string, isValid: boolean) => {
+    setPhoneNumber(value);
+    setPhoneValid(isValid);
+    // Clear consent error when phone is removed
+    if (!value) {
+      setConsentError("");
+      setPhoneConsent(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    // Validate consent if phone number is provided
+    if (phoneNumber && !phoneConsent) {
+      e.preventDefault();
+      setConsentError("You must agree to be contacted if providing a phone number");
+      return;
+    }
+    setConsentError("");
+  };
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -73,7 +104,7 @@ export function SignupForm({
             </div>
 
             {/* Email/Password Form */}
-            <form action={signUp}>
+            <form action={signUp} onSubmit={handleSubmit}>
               <div className="flex flex-col gap-6">
                 <div className="grid gap-3">
                   <Label htmlFor="firstName">First Name</Label>
@@ -125,8 +156,72 @@ export function SignupForm({
                     required
                   />
                 </div>
+
+                {/* Phone Number (Optional) */}
+                <div className="grid gap-3">
+                  <Label htmlFor="phone">
+                    Phone Number <span className="text-gray-500 text-sm">(Optional)</span>
+                  </Label>
+                  <PhoneInput
+                    id="phone"
+                    name="phoneNumber"
+                    value={phoneNumber}
+                    onChange={handlePhoneChange}
+                    countryCode={phoneCountryCode}
+                    onCountryChange={setPhoneCountryCode}
+                    placeholder="Enter your phone number"
+                    aria-describedby={phoneNumber ? "phone-consent-description" : undefined}
+                  />
+                  <input type="hidden" name="phoneNumber" value={phoneNumber} />
+                  <input type="hidden" name="phoneCountryCode" value={phoneCountryCode} />
+                  <input type="hidden" name="phoneConsent" value={phoneConsent ? "true" : "false"} />
+                </div>
+
+                {/* Phone Consent Checkbox */}
+                {phoneNumber && (
+                  <div className="grid gap-3">
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="phoneConsent"
+                        checked={phoneConsent}
+                        onCheckedChange={(checked: boolean) => {
+                          setPhoneConsent(checked === true);
+                          if (checked) {
+                            setConsentError("");
+                          }
+                        }}
+                        aria-describedby="phone-consent-description"
+                        aria-invalid={!!consentError}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label
+                          htmlFor="phoneConsent"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          I agree to be contacted via phone
+                        </label>
+                        <p
+                          id="phone-consent-description"
+                          className="text-sm text-gray-500"
+                        >
+                          By checking this box, you consent to receive communications from us at the phone number provided. Message and data rates may apply.
+                        </p>
+                      </div>
+                    </div>
+                    {consentError && (
+                      <p className="text-sm text-red-500" role="alert" aria-live="polite">
+                        {consentError}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-3">
-                  <Button type="submit" className="w-full">
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={phoneNumber ? !phoneValid : false}
+                  >
                     Create Account
                   </Button>
                 </div>
