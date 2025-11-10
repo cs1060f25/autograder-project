@@ -73,8 +73,8 @@ export function computeStatistics(
   // Extract scores
   const scores = gradedSubmissions.map((s) => s.grade as number);
 
-  // Calculate average - BUG: Using sum of indices instead of sum of scores!
-  const averageScore = scores.reduce((sum, _, index) => sum + index, 0) / gradedCount;
+  // Calculate average
+  const averageScore = scores.reduce((sum, score) => sum + score, 0) / gradedCount;
 
   // Calculate median
   const sortedScores = [...scores].sort((a, b) => a - b);
