@@ -175,10 +175,29 @@ export async function getAIGradingStatus(submissionId: string): Promise<{
     const autograderService = new AutograderService();
     const result = await autograderService.getStatus(submissionId);
 
+    // Map AutogradeStatus to AIGradingStatus
+    let mappedStatus: AIGradingStatus["status"];
+    switch (result.status) {
+      case "completed":
+        mappedStatus = "completed";
+        break;
+      case "processing":
+      case "pending":
+        mappedStatus = "pending";
+        break;
+      case "failed":
+      case "no_rubric":
+      case "no_documents":
+        mappedStatus = "failed";
+        break;
+      default:
+        mappedStatus = "pending";
+    }
+
     return {
       success: true,
       status: {
-        status: result.status,
+        status: mappedStatus,
         ai_grade_data: result.result ? {
           totalAwarded: result.result.totalAwarded!,
           totalPossible: result.result.totalPossible!,
