@@ -132,6 +132,13 @@ export function StudentDashboardContent({
     return new Date() > new Date(dueDate);
   };
 
+  const isDueSoon = (dueDate: string) => {
+    const now = new Date();
+    const due = new Date(dueDate);
+    const hoursUntilDue = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return hoursUntilDue > 0 && hoursUntilDue <= 48;
+  };
+
   const canSubmit = (assignment: Assignment) => {
     return (
       !isAssignmentOverdue(assignment.due_date) &&
@@ -200,9 +207,19 @@ export function StudentDashboardContent({
                   <div className="flex items-center space-x-4">
                     {getStatusIcon(assignment)}
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">
-                        {assignment.title}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-gray-900">
+                          {assignment.title}
+                        </h3>
+                        {isDueSoon(assignment.due_date) &&
+                          !isAssignmentOverdue(assignment.due_date) &&
+                          (!assignment.submission ||
+                            assignment.submission.status === "draft") && (
+                            <span className="px-2 py-0.5 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                              Due Soon
+                            </span>
+                          )}
+                      </div>
                       <p className="text-sm text-gray-500">
                         {assignment.course?.code || "Unknown Course"} • Due:{" "}
                         {new Date(assignment.due_date).toLocaleDateString()}
