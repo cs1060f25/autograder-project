@@ -3,7 +3,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { requireAuth } from "./user-utils";
 import { revalidatePath } from "next/cache";
-import { RubricCriterion } from "./data-utils";
+import { AutograderService } from "@/services/autograder";
+import type { SubmissionDocument } from "@/services/autograder";
 
 export interface AIGradeData {
   totalAwarded: number;
@@ -25,6 +26,10 @@ export interface AIGradingStatus {
   error?: string;
 }
 
+/**
+ * Trigger AI grading for a submission using the AutograderService
+ * This function now uses the core autograder orchestration service
+ */
 export async function triggerAIGrading(submissionId: string): Promise<{
   success: boolean;
   error?: string;
@@ -42,7 +47,7 @@ export async function triggerAIGrading(submissionId: string): Promise<{
   const supabase = await createClient();
 
   try {
-    // Get submission details
+    // Get submission details including attachments
     const { data: submission, error: submissionError } = await supabase
       .from("submissions")
       .select(
@@ -72,123 +77,45 @@ export async function triggerAIGrading(submissionId: string): Promise<{
       return { success: false, error: "Assignment not found" };
     }
 
-    // Get rubric for this assignment
-    const { data: rubric, error: rubricError } = await supabase
-      .from("rubrics")
-      .select("id, criteria")
-      .eq("assignment_id", assignment.id)
-      .single();
-
-    if (rubricError || !rubric) {
-      console.log(
-        "No rubric found for assignment:",
-        assignment.id,
-        rubricError
-      );
-      return { success: false, error: "No rubric found for this assignment" };
-    }
-
-    // Check if submission has PDF attachments
-    if (!submission.attachments || submission.attachments.length === 0) {
-      return { success: false, error: "No PDF attachments found" };
-    }
-
-    // Update submission status to indicate AI grading is pending
-    await supabase
-      .from("submissions")
-      .update({
-        ai_grade_status: "pending",
-        updated_at: new Date().toISOString(),
+    // Transform attachments to SubmissionDocument format
+    const documents: SubmissionDocument[] = (submission.attachments || []).map(
+      (attachment: any) => ({
+        id: attachment.id || `${submissionId}-${attachment.name}`,
+        url: attachment.url,
+        name: attachment.name,
+        type: attachment.type,
+        size: attachment.size || 0,
       })
-      .eq("id", submissionId);
+    );
 
-    // Transform rubric criteria to API format
-    const rubricCriteria = rubric.criteria as RubricCriterion[];
+    // Initialize AutograderService
+    const autograderService = new AutograderService();
 
-    if (!rubricCriteria || !Array.isArray(rubricCriteria)) {
-      console.log("Invalid rubric criteria:", rubricCriteria);
-      return { success: false, error: "Invalid rubric criteria format" };
+    // Check if service is ready
+    const isReady = await autograderService.isReady();
+    if (!isReady) {
+      return { 
+        success: false, 
+        error: "Autograder service is not ready. Please check configuration." 
+      };
     }
 
-    const apiRubric = rubricCriteria.map((criterion) => ({
-      id: criterion.id,
-      label: criterion.name,
-      maxPoints: criterion.max_points,
-      guidance: criterion.description,
-    }));
+    // Execute autograding using the orchestration service
+    const result = await autograderService.autograde({
+      submissionId,
+      assignmentId: assignment.id,
+      documents,
+    });
 
-    // Process each PDF attachment by passing public URL to API (no file upload)
-    for (const attachment of submission.attachments) {
-      if (attachment.type === "application/pdf") {
-        try {
-          // Prepare request
-          const formData = new FormData();
-          formData.append("file", attachment.url); // pass public URL
-          formData.append("rubric", JSON.stringify(apiRubric));
-
-          const apiUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/grade`;
-          const response = await fetch(apiUrl, {
-            method: "POST",
-            body: formData,
-          });
-
-          if (!response.ok) {
-            const responseText = await response.text();
-            console.error("API error response:", responseText);
-            try {
-              const errorData = JSON.parse(responseText);
-              throw new Error(errorData.error || "AI grading failed");
-            } catch (parseError) {
-              throw new Error(
-                `AI grading failed: ${response.status} ${response.statusText}`
-              );
-            }
-          }
-
-          const responseText = await response.text();
-          let aiGradeData: AIGradeData;
-          try {
-            aiGradeData = JSON.parse(responseText);
-          } catch (parseError) {
-            console.error("Failed to parse API response as JSON:", parseError);
-            console.error("Response text:", responseText);
-            throw new Error("Invalid response from AI grading API");
-          }
-
-          // Store AI grading results
-          await supabase
-            .from("submissions")
-            .update({
-              ai_grade_data: aiGradeData,
-              ai_grade_status: "completed",
-              ai_graded_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", submissionId);
-
-          // Save AI comments to rubric_scores if they exist
-          await saveAIGradeComments(submissionId, rubric.id, aiGradeData);
-          return { success: true };
-        } catch (error) {
-          console.error("AI grading error:", error);
-          // Update status to failed
-          await supabase
-            .from("submissions")
-            .update({
-              ai_grade_status: "failed",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", submissionId);
-
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "AI grading failed",
-          };
-        }
-      }
+    // Map AutogradeResult to response format
+    if (result.status === "completed") {
+      return { success: true };
+    } else {
+      return { 
+        success: false, 
+        error: result.error || `Autograding failed with status: ${result.status}` 
+      };
     }
-
-    return { success: false, error: "No valid PDF files found" };
   } catch (error) {
     console.error("AI grading error:", error);
     return {
@@ -225,6 +152,9 @@ export async function regenerateAIGrade(submissionId: string): Promise<{
   return await triggerAIGrading(submissionId);
 }
 
+/**
+ * Get AI grading status for a submission using the AutograderService
+ */
 export async function getAIGradingStatus(submissionId: string): Promise<{
   success: boolean;
   status?: AIGradingStatus;
@@ -240,25 +170,41 @@ export async function getAIGradingStatus(submissionId: string): Promise<{
     return { success: false, error: "Unauthorized" };
   }
 
-  const supabase = await createClient();
-
   try {
-    const { data: submission, error } = await supabase
-      .from("submissions")
-      .select("ai_grade_data, ai_grade_status, ai_graded_at")
-      .eq("id", submissionId)
-      .single();
+    // Use AutograderService to get status
+    const autograderService = new AutograderService();
+    const result = await autograderService.getStatus(submissionId);
 
-    if (error || !submission) {
-      return { success: false, error: "Submission not found" };
+    // Map AutogradeStatus to AIGradingStatus
+    let mappedStatus: AIGradingStatus["status"];
+    switch (result.status) {
+      case "completed":
+        mappedStatus = "completed";
+        break;
+      case "processing":
+      case "pending":
+        mappedStatus = "pending";
+        break;
+      case "failed":
+      case "no_rubric":
+      case "no_documents":
+        mappedStatus = "failed";
+        break;
+      default:
+        mappedStatus = "pending";
     }
 
     return {
       success: true,
       status: {
-        status: submission.ai_grade_status || "pending",
-        ai_grade_data: submission.ai_grade_data,
-        ai_graded_at: submission.ai_graded_at,
+        status: mappedStatus,
+        ai_grade_data: result.result ? {
+          totalAwarded: result.result.totalAwarded!,
+          totalPossible: result.result.totalPossible!,
+          items: result.result.items!,
+          overallFeedback: result.result.overallFeedback!,
+        } : undefined,
+        ai_graded_at: result.result?.gradedAt,
       },
     };
   } catch (error) {
@@ -269,48 +215,5 @@ export async function getAIGradingStatus(submissionId: string): Promise<{
           ? error.message
           : "Failed to get AI grading status",
     };
-  }
-}
-
-async function saveAIGradeComments(
-  submissionId: string,
-  rubricId: string,
-  aiGradeData: AIGradeData
-): Promise<void> {
-  const supabase = await createClient();
-
-  // Create AI comments mapping
-  const aiComments: Record<string, string> = {};
-  aiGradeData.items.forEach((item) => {
-    aiComments[item.id] = item.comments;
-  });
-
-  // Check if rubric scores already exist
-  const { data: existingScores } = await supabase
-    .from("rubric_scores")
-    .select("id")
-    .eq("submission_id", submissionId)
-    .single();
-
-  if (existingScores) {
-    // Update existing scores with AI comments
-    await supabase
-      .from("rubric_scores")
-      .update({
-        ai_comments: aiComments,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingScores.id);
-  } else {
-    // Create new rubric scores entry with AI comments
-    await supabase.from("rubric_scores").insert({
-      submission_id: submissionId,
-      rubric_id: rubricId,
-      scores: {}, // Will be filled when TA manually grades
-      total_score: 0,
-      ai_comments: aiComments,
-      graded_by: null, // AI generated
-      graded_at: new Date().toISOString(),
-    });
   }
 }
