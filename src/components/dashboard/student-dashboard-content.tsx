@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmissionModal } from "@/components/modals/submission-modal";
 import { RegradeRequestModal } from "@/components/modals/regrade-request-modal";
 import { Assignment, Submission } from "@/lib/data-utils";
@@ -51,6 +58,42 @@ export function StudentDashboardContent({
     }>;
   } | null>(null);
   const [loadingRubric, setLoadingRubric] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("due-date-asc");
+
+  // Sort assignments based on selected option
+  const sortedAssignments = useMemo(() => {
+    const sorted = [...assignments];
+    
+    switch (sortBy) {
+      case "due-date-asc":
+        return sorted.sort(
+          (a, b) =>
+            new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+        );
+      case "due-date-desc":
+        return sorted.sort(
+          (a, b) =>
+            new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+        );
+      case "title-asc":
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case "title-desc":
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      case "status":
+        return sorted.sort((a, b) => {
+          const statusOrder = { draft: 0, submitted: 1, graded: 2 };
+          const aStatus = a.submission?.status || "none";
+          const bStatus = b.submission?.status || "none";
+          const aOrder =
+            statusOrder[aStatus as keyof typeof statusOrder] ?? 3;
+          const bOrder =
+            statusOrder[bStatus as keyof typeof statusOrder] ?? 3;
+          return aOrder - bOrder;
+        });
+      default:
+        return sorted;
+    }
+  }, [assignments, sortBy]);
 
   const getStatusIcon = (
     assignment: Assignment & { submission?: Submission }
@@ -185,8 +228,23 @@ export function StudentDashboardContent({
 
       {/* Assignments List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>Your Assignments</CardTitle>
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-600">Sort by:</label>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="due-date-asc">Due Date (Earliest)</SelectItem>
+                <SelectItem value="due-date-desc">Due Date (Latest)</SelectItem>
+                <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                <SelectItem value="status">Status</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -199,7 +257,7 @@ export function StudentDashboardContent({
                 </p>
               </div>
             ) : (
-              assignments.map((assignment) => (
+              sortedAssignments.map((assignment) => (
                 <div
                   key={assignment.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
