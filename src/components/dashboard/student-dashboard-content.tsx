@@ -1,11 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { SubmissionModal } from "@/components/modals/submission-modal";
 import { RegradeRequestModal } from "@/components/modals/regrade-request-modal";
+import { ViewRegradeRequestModal } from "@/components/modals/view-regrade-request-modal";
 import { Assignment, Submission } from "@/lib/data-utils";
+import { getMyRegradeRequests } from "@/lib/regrade-actions";
+import type { RegradeRequest } from "@/types/regrade";
 
 // Type for assignments with optional submission data
 type AssignmentWithSubmission = Assignment & { submission?: Submission };
@@ -51,6 +55,23 @@ export function StudentDashboardContent({
     }>;
   } | null>(null);
   const [loadingRubric, setLoadingRubric] = useState(false);
+  const [regradeRequests, setRegradeRequests] = useState<(RegradeRequest & { assignments?: { title: string } })[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [viewingRequest, setViewingRequest] = useState<RegradeRequest | null>(null);
+  const [isViewRequestModalOpen, setIsViewRequestModalOpen] = useState(false);
+
+  useEffect(() => {
+    loadRegradeRequests();
+  }, []);
+
+  const loadRegradeRequests = async () => {
+    setLoadingRequests(true);
+    const result = await getMyRegradeRequests();
+    if (result.success && result.requests) {
+      setRegradeRequests(result.requests as any);
+    }
+    setLoadingRequests(false);
+  };
 
   const getStatusIcon = (
     assignment: Assignment & { submission?: Submission }
@@ -247,17 +268,29 @@ export function StudentDashboardContent({
                             View
                           </Button>
                           
-                          {assignment.submission.status === "graded" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRequestRegrade(assignment)}
-                              className="text-orange-600 hover:text-orange-700 border-orange-300 hover:border-orange-400"
-                            >
-                              <AlertCircle className="h-4 w-4 mr-1" />
-                              Request Regrade
-                            </Button>
-                          )}
+                          {assignment.submission.status === "graded" && (() => {
+                            const existingRequest = regradeRequests.find(
+                              req => req.assignment_id === assignment.id
+                            );
+                            return (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (existingRequest) {
+                                    setViewingRequest(existingRequest);
+                                    setIsViewRequestModalOpen(true);
+                                  } else {
+                                    handleRequestRegrade(assignment);
+                                  }
+                                }}
+                                className="text-orange-600 hover:text-orange-700 border-orange-300 hover:border-orange-400"
+                              >
+                                <AlertCircle className="h-4 w-4 mr-1" />
+                                {existingRequest ? "View Regrade Request" : "Request Regrade"}
+                              </Button>
+                            );
+                          })()}
                         </>
                       )}
 
@@ -319,12 +352,25 @@ export function StudentDashboardContent({
             setIsRegradeModalOpen(false);
             setRegradeAssignment(null);
             setRubricData(null);
+            loadRegradeRequests(); // Reload to show the new request
           }}
           submissionId={regradeAssignment.submission.id}
           assignmentId={regradeAssignment.id}
           assignmentTitle={regradeAssignment.title}
           rubricScoreId={rubricData.rubricScoreId}
           rubricItems={rubricData.items}
+        />
+      )}
+
+      {/* View Regrade Request Modal */}
+      {viewingRequest && (
+        <ViewRegradeRequestModal
+          isOpen={isViewRequestModalOpen}
+          onClose={() => {
+            setIsViewRequestModalOpen(false);
+            setViewingRequest(null);
+          }}
+          request={viewingRequest as any}
         />
       )}
     </div>

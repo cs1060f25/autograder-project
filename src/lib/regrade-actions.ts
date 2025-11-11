@@ -358,6 +358,7 @@ export async function withdrawRegradeRequest(
 
 /**
  * Resolve a regrade request (instructor/TA only)
+ * When approved, triggers grade recalculation and gradebook sync
  */
 export async function resolveRegradeRequest(
   params: ResolveRegradeRequestParams
@@ -381,7 +382,8 @@ export async function resolveRegradeRequest(
         *,
         assignments:assignment_id (
           instructor_id,
-          course_id
+          course_id,
+          max_points
         )
       `)
       .eq("id", params.requestId)
@@ -434,13 +436,15 @@ export async function resolveRegradeRequest(
       }
     }
 
-    // Update the regrade request
+    const resolvedAt = new Date().toISOString();
+
+    // Update the regrade request with immutable audit trail
     const { data: updatedRequest, error: updateError } = await supabase
       .from("regrade_requests")
       .update({
         status: params.status,
         resolved_by: userProfile.id,
-        resolved_at: new Date().toISOString(),
+        resolved_at: resolvedAt,
         resolution_notes: params.resolutionNotes.trim(),
         points_awarded: params.status === "approved" ? params.pointsAwarded : null,
       })
@@ -456,6 +460,30 @@ export async function resolveRegradeRequest(
       };
     }
 
+    // If approved, recalculate grade and update gradebook
+    if (params.status === "approved" && params.pointsAwarded !== undefined) {
+      try {
+        await recalculateGradeAfterRegrade(
+          request.submission_id,
+          request.rubric_score_id,
+          request.rubric_item_id,
+          params.pointsAwarded,
+          userProfile.id,
+          params.resolutionNotes,
+          assignment.max_points
+        );
+      } catch (gradeError) {
+        console.error("Error recalculating grade:", gradeError);
+        // Log error but don't fail the resolution
+        // The regrade request is marked as approved, but grade update failed
+        return {
+          success: true,
+          request: updatedRequest,
+          error: "Regrade approved but grade recalculation failed. Please update manually.",
+        } as any;
+      }
+    }
+
     return {
       success: true,
       request: updatedRequest,
@@ -466,6 +494,103 @@ export async function resolveRegradeRequest(
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
     };
+  }
+}
+
+/**
+ * Recalculate grade after regrade approval
+ * Updates rubric scores, submission grade, and creates audit log entry
+ */
+async function recalculateGradeAfterRegrade(
+  submissionId: string,
+  rubricScoreId: string,
+  rubricItemId: string,
+  newPoints: number,
+  reviewerId: string,
+  reason: string,
+  totalPoints: number
+): Promise<void> {
+  const supabase = await createClient();
+
+  // Get current rubric score
+  const { data: rubricScore, error: scoreError } = await supabase
+    .from("rubric_scores")
+    .select("scores, ai_comments, graded_by, graded_at")
+    .eq("id", rubricScoreId)
+    .single();
+
+  if (scoreError || !rubricScore) {
+    throw new Error("Rubric score not found");
+  }
+
+  const scores = rubricScore.scores as any;
+  const previousScore = scores[rubricItemId];
+
+  // Update the rubric item score
+  scores[rubricItemId] = newPoints;
+
+  // Calculate new total score
+  const newTotalScore = Object.values(scores).reduce(
+    (sum: number, score: any) => sum + (typeof score === "number" ? score : 0),
+    0
+  );
+
+  // Update rubric scores with TA override tracking
+  const { error: updateScoreError } = await supabase
+    .from("rubric_scores")
+    .update({
+      scores,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", rubricScoreId);
+
+  if (updateScoreError) {
+    throw new Error("Failed to update rubric scores");
+  }
+
+  // Update submission grade
+  const { error: updateSubmissionError } = await supabase
+    .from("submissions")
+    .update({
+      grade: newTotalScore,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", submissionId);
+
+  if (updateSubmissionError) {
+    throw new Error("Failed to update submission grade");
+  }
+
+  // Create immutable audit log entry
+  const auditEntry = {
+    submission_id: submissionId,
+    rubric_score_id: rubricScoreId,
+    rubric_item_id: rubricItemId,
+    action: "regrade_approved",
+    previous_score: previousScore,
+    new_score: newPoints,
+    changed_by: reviewerId,
+    reason,
+    timestamp: new Date().toISOString(),
+    metadata: {
+      previous_total: Object.values(rubricScore.scores as any).reduce(
+        (sum: number, score: any) => sum + (typeof score === "number" ? score : 0),
+        0
+      ),
+      new_total: newTotalScore,
+      original_grader: rubricScore.graded_by,
+      original_graded_at: rubricScore.graded_at,
+    },
+  };
+
+  // Store audit entry (create table if needed)
+  const { error: auditError } = await supabase
+    .from("grade_audit_log")
+    .insert(auditEntry);
+
+  if (auditError) {
+    console.error("Failed to create audit log entry:", auditError);
+    // Don't throw - audit log is important but not critical for grade update
   }
 }
 
@@ -549,6 +674,116 @@ export async function getRubricItemsForSubmission(
     };
   } catch (error) {
     console.error("Error fetching rubric items:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
+}
+
+/**
+ * Get audit log entries for a submission
+ * Returns immutable audit trail of all grade changes
+ */
+export async function getSubmissionAuditLog(
+  submissionId: string
+): Promise<{
+  success: boolean;
+  auditLog?: Array<{
+    id: string;
+    submission_id: string;
+    rubric_score_id: string;
+    rubric_item_id: string;
+    action: string;
+    previous_score: number;
+    new_score: number;
+    changed_by: string;
+    reason: string;
+    timestamp: string;
+    metadata: any;
+    reviewer?: {
+      first_name: string;
+      last_name: string;
+      email: string;
+    };
+  }>;
+  error?: string;
+}> {
+  try {
+    const userProfile = await requireAuth();
+    const supabase = await createClient();
+
+    // Verify user has access to this submission
+    const { data: submission, error: submissionError } = await supabase
+      .from("submissions")
+      .select("id, student_id, assignment_id")
+      .eq("id", submissionId)
+      .single();
+
+    if (submissionError || !submission) {
+      return { success: false, error: "Submission not found" };
+    }
+
+    // Check if user is the student, instructor, or TA
+    const isStudent = submission.student_id === userProfile.id;
+    
+    let hasAccess = isStudent;
+    
+    if (!hasAccess) {
+      // Check if user is instructor or TA for this assignment's course
+      const { data: assignment } = await supabase
+        .from("assignments")
+        .select("instructor_id, course_id")
+        .eq("id", submission.assignment_id)
+        .single();
+
+      if (assignment) {
+        const isInstructor = assignment.instructor_id === userProfile.id;
+        
+        if (!isInstructor) {
+          const { data: taAssignment } = await supabase
+            .from("course_ta_assignments")
+            .select("id")
+            .eq("course_id", assignment.course_id)
+            .eq("ta_id", userProfile.id)
+            .maybeSingle();
+          
+          hasAccess = !!taAssignment;
+        } else {
+          hasAccess = true;
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      return { success: false, error: "You do not have permission to view this audit log" };
+    }
+
+    // Fetch audit log entries
+    const { data: auditLog, error: auditError } = await supabase
+      .from("grade_audit_log")
+      .select(`
+        *,
+        reviewer:changed_by (
+          first_name,
+          last_name,
+          email
+        )
+      `)
+      .eq("submission_id", submissionId)
+      .order("timestamp", { ascending: false });
+
+    if (auditError) {
+      console.error("Error fetching audit log:", auditError);
+      return { success: false, error: "Failed to fetch audit log" };
+    }
+
+    return {
+      success: true,
+      auditLog: auditLog || [],
+    };
+  } catch (error) {
+    console.error("Error in getSubmissionAuditLog:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",

@@ -7,8 +7,9 @@ import { requireRole } from "@/lib/user-utils";
 import { getTAAssignments, Assignment, Submission } from "@/lib/data-utils";
 import { createClient } from "@/utils/supabase/client";
 import { GradingModal } from "@/components/modals/grading-modal";
-import { FileText, Clock, CheckCircle, Star, BarChart3 } from "lucide-react";
+import { FileText, Clock, CheckCircle, Star, BarChart3, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface TADashboardData {
   assignments: (Assignment & {
@@ -121,6 +122,16 @@ export default function TADashboard() {
         requiredRole="ta"
       >
         <div className="grid gap-6">
+          {/* Quick Actions */}
+          <div className="flex justify-end">
+            <Link href="/dashboard/regrade-requests">
+              <Button variant="outline" className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                View Regrade Requests
+              </Button>
+            </Link>
+          </div>
+
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
