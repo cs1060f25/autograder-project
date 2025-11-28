@@ -68,6 +68,33 @@ export async function submitRegradeRequest(
       };
     }
 
+    // Rate limiting: Check number of pending requests in the last 24 hours
+    const RATE_LIMIT = 10; // Maximum requests per 24 hours
+    const RATE_LIMIT_WINDOW_HOURS = 24;
+    const windowStart = new Date();
+    windowStart.setHours(windowStart.getHours() - RATE_LIMIT_WINDOW_HOURS);
+
+    const { count: recentRequestCount, error: countError } = await supabase
+      .from("regrade_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("student_id", userProfile.id)
+      .gte("created_at", windowStart.toISOString());
+
+    if (countError) {
+      console.error("Error checking rate limit:", countError);
+      return {
+        success: false,
+        error: "Failed to verify rate limit",
+      };
+    }
+
+    if (recentRequestCount !== null && recentRequestCount >= RATE_LIMIT) {
+      return {
+        success: false,
+        error: `You have exceeded the maximum number of regrade requests (${RATE_LIMIT}) in the last ${RATE_LIMIT_WINDOW_HOURS} hours. Please try again later.`,
+      };
+    }
+
     // Verify the rubric score exists and belongs to this submission
     const { data: rubricScore, error: rubricScoreError } = await supabase
       .from("rubric_scores")
