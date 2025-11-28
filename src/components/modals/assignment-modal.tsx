@@ -382,41 +382,170 @@ export function AssignmentModal({
 
               {showRubric && (
                 <div className="space-y-4">
-                  {/* Points Progress Bar */}
-                  <div className="bg-gray-50 rounded-lg p-3 border">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Points Allocation
-                      </span>
-                      <span
-                        className={`text-sm font-bold ${
-                          getTotalPoints() === maxPoints
-                            ? "text-green-600"
-                            : getTotalPoints() > maxPoints
-                            ? "text-red-600"
-                            : "text-amber-600"
-                        }`}
-                      >
-                        {getTotalPoints()} / {maxPoints} pts
-                      </span>
-                    </div>
+                  <p className="text-sm text-gray-600">
+                    Define criteria for grading this assignment. The total
+                    points must equal the assignment max points.
+                  </p>
 
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div
-                        className={`h-2.5 rounded-full transition-all duration-300 ${
-                          getTotalPoints() === maxPoints
-                            ? "bg-green-500"
-                            : getTotalPoints() > maxPoints
-                            ? "bg-red-500"
-                            : "bg-amber-500"
-                        }`}
-                        style={{
-                          width: `${Math.min(
-                            (getTotalPoints() / maxPoints) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
+                  {rubricCriteria.map((criterion, index) => (
+                    <div
+                      key={criterion.id}
+                      className="p-4 border rounded-lg space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Criterion {index + 1}</h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCriterion(criterion.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor={`criterion-name-${criterion.id}`}>
+                          Name
+                        </Label>
+                        <Input
+                          id={`criterion-name-${criterion.id}`}
+                          value={criterion.name}
+                          onChange={(e) =>
+                            updateCriterion(
+                              criterion.id,
+                              "name",
+                              e.target.value
+                            )
+                          }
+                          placeholder="e.g., Code Quality"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label
+                          htmlFor={`criterion-description-${criterion.id}`}
+                        >
+                          Description
+                        </Label>
+                        <textarea
+                          id={`criterion-description-${criterion.id}`}
+                          value={criterion.description}
+                          onChange={(e) =>
+                            updateCriterion(
+                              criterion.id,
+                              "description",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Describe what this criterion evaluates..."
+                          className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor={`criterion-points-${criterion.id}`}>
+                          Max Points
+                        </Label>
+                        <Input
+                          id={`criterion-points-${criterion.id}`}
+                          type="number"
+                          min="1"
+                          value={criterion.max_points}
+                          onChange={(e) =>
+                            updateCriterion(
+                              criterion.id,
+                              "max_points",
+                              parseInt(e.target.value) || 0
+                            )
+                          }
+                          placeholder="10"
+                          required
+                        />
+                      </div>
+
+                      {/* Presets Section */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">
+                            Scoring Presets
+                          </Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addPreset(criterion.id)}
+                            disabled={(criterion.presets?.length || 0) >= 9}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Preset
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Define preset scores that can be quickly applied
+                          during grading.
+                        </p>
+                        {criterion.presets && criterion.presets.length > 0 && (
+                          <div className="space-y-2">
+                            {criterion.presets.map((preset, presetIndex) => (
+                              <div
+                                key={presetIndex}
+                                className="flex items-center gap-2 p-2 bg-gray-50 rounded border"
+                              >
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-medium flex-shrink-0">
+                                  {presetIndex + 1}
+                                </div>
+                                <div className="flex-1 grid grid-cols-2 gap-2">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={criterion.max_points}
+                                    value={preset.points}
+                                    onChange={(e) =>
+                                      updatePreset(
+                                        criterion.id,
+                                        presetIndex,
+                                        "points",
+                                        parseInt(e.target.value) || 0
+                                      )
+                                    }
+                                    placeholder="Points"
+                                    className="h-8"
+                                  />
+                                  <Input
+                                    type="text"
+                                    value={preset.description}
+                                    onChange={(e) =>
+                                      updatePreset(
+                                        criterion.id,
+                                        presetIndex,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Description (optional)"
+                                    className="h-8"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    removePreset(criterion.id, presetIndex)
+                                  }
+                                  className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
 
