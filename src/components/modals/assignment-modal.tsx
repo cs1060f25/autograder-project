@@ -34,6 +34,7 @@ interface AssignmentModalProps {
   assignment?: Assignment | null;
   courses: Course[];
   mode: "create" | "edit";
+  defaultCourseId?: string;
 }
 
 export function AssignmentModal({
@@ -42,6 +43,7 @@ export function AssignmentModal({
   assignment,
   courses,
   mode,
+  defaultCourseId,
 }: AssignmentModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,7 +271,7 @@ export function AssignmentModal({
               <Label htmlFor="course_id">Course</Label>
               <Select
                 name="course_id"
-                defaultValue={assignment?.course_id || ""}
+                defaultValue={assignment?.course_id || defaultCourseId || ""}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a course" />

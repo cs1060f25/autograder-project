@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,18 +11,8 @@ import { ViewRegradeRequestModal } from "@/components/modals/view-regrade-reques
 import { Assignment, Submission, Course } from "@/lib/data-utils";
 import { getMyRegradeRequests } from "@/lib/regrade-actions";
 import type { RegradeRequest } from "@/types/regrade";
-
-// Type for assignments with optional submission data
-type AssignmentWithSubmission = Assignment & { submission?: Submission };
-
-// Type for courses with stats
-type CourseWithStats = Course & {
-  assignments_count: number;
-  pending_count: number;
-  submitted_count: number;
-};
-
 import {
+  ArrowLeft,
   BookOpen,
   Clock,
   CheckCircle,
@@ -30,28 +20,21 @@ import {
   Eye,
   FileText,
   AlertCircle,
-  GraduationCap,
-  ChevronRight,
 } from "lucide-react";
 
-interface StudentDashboardContentProps {
-  assignments: (Assignment & { submission?: Submission })[];
-  stats: {
-    total: number;
-    submitted: number;
-    pending: number;
-  };
+type AssignmentWithSubmission = Assignment & { submission?: Submission };
+
+interface StudentCourseDetailContentProps {
+  course: Course;
+  assignments: AssignmentWithSubmission[];
   studentId: string;
-  courses?: CourseWithStats[];
 }
 
-export function StudentDashboardContent({
+export function StudentCourseDetailContent({
+  course,
   assignments,
-  stats,
   studentId,
-  courses = [],
-}: StudentDashboardContentProps) {
-  const router = useRouter();
+}: StudentCourseDetailContentProps) {
   const [selectedAssignment, setSelectedAssignment] =
     useState<AssignmentWithSubmission | null>(null);
   const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
@@ -69,10 +52,27 @@ export function StudentDashboardContent({
     }>;
   } | null>(null);
   const [loadingRubric, setLoadingRubric] = useState(false);
-  const [regradeRequests, setRegradeRequests] = useState<(RegradeRequest & { assignments?: { title: string } })[]>([]);
+  const [regradeRequests, setRegradeRequests] = useState<
+    (RegradeRequest & { assignments?: { title: string } })[]
+  >([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-  const [viewingRequest, setViewingRequest] = useState<RegradeRequest | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<RegradeRequest | null>(
+    null
+  );
   const [isViewRequestModalOpen, setIsViewRequestModalOpen] = useState(false);
+
+  // Calculate stats
+  const stats = {
+    total: assignments.length,
+    submitted: assignments.filter(
+      (a) =>
+        a.submission?.status === "submitted" ||
+        a.submission?.status === "graded"
+    ).length,
+    pending: assignments.filter(
+      (a) => !a.submission || a.submission.status === "draft"
+    ).length,
+  };
 
   useEffect(() => {
     loadRegradeRequests();
@@ -87,9 +87,7 @@ export function StudentDashboardContent({
     setLoadingRequests(false);
   };
 
-  const getStatusIcon = (
-    assignment: Assignment & { submission?: Submission }
-  ) => {
+  const getStatusIcon = (assignment: AssignmentWithSubmission) => {
     if (!assignment.submission) {
       return <Clock className="h-5 w-5 text-yellow-500" />;
     }
@@ -106,9 +104,40 @@ export function StudentDashboardContent({
     }
   };
 
-  const getGradeDisplay = (
-    assignment: Assignment & { submission?: Submission }
-  ) => {
+  const getStatusBadge = (assignment: AssignmentWithSubmission) => {
+    if (!assignment.submission) {
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+          Not Started
+        </Badge>
+      );
+    }
+
+    switch (assignment.submission.status) {
+      case "submitted":
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            Submitted
+          </Badge>
+        );
+      case "graded":
+        return (
+          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+            Graded
+          </Badge>
+        );
+      case "draft":
+        return (
+          <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+            Draft
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">{assignment.submission.status}</Badge>;
+    }
+  };
+
+  const getGradeDisplay = (assignment: AssignmentWithSubmission) => {
     if (!assignment.submission?.grade) return null;
 
     const percentage =
@@ -128,28 +157,25 @@ export function StudentDashboardContent({
     setIsSubmissionModalOpen(true);
   };
 
-  const handleViewSubmission = (
-    assignment: Assignment & { submission?: Submission }
-  ) => {
+  const handleViewSubmission = (assignment: AssignmentWithSubmission) => {
     if (assignment.submission) {
       setSelectedAssignment(assignment);
       setIsSubmissionModalOpen(true);
     }
   };
 
-  const handleRequestRegrade = async (
-    assignment: Assignment & { submission?: Submission }
-  ) => {
+  const handleRequestRegrade = async (assignment: AssignmentWithSubmission) => {
     if (!assignment.submission) return;
-    
+
     setRegradeAssignment(assignment);
     setIsRegradeModalOpen(true);
     setLoadingRubric(true);
-    
-    // Fetch rubric data
-    const { getRubricItemsForSubmission } = await import("@/lib/regrade-actions");
+
+    const { getRubricItemsForSubmission } = await import(
+      "@/lib/regrade-actions"
+    );
     const result = await getRubricItemsForSubmission(assignment.submission.id);
-    
+
     if (result.success && result.items && result.rubricScoreId) {
       setRubricData({
         rubricScoreId: result.rubricScoreId,
@@ -157,9 +183,8 @@ export function StudentDashboardContent({
       });
     } else {
       console.error("Failed to load rubric data:", result.error);
-      // Keep modal open but show error in modal
     }
-    
+
     setLoadingRubric(false);
   };
 
@@ -175,8 +200,16 @@ export function StudentDashboardContent({
   };
 
   return (
-    <div className="grid gap-6">
-      {/* Quick Stats */}
+    <div className="space-y-6">
+      {/* Back Navigation */}
+      <Link href="/dashboard/student">
+        <Button variant="ghost" size="sm" className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Button>
+      </Link>
+
+      {/* Course Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -211,89 +244,45 @@ export function StudentDashboardContent({
         </Card>
       </div>
 
-      {/* Your Courses */}
+      {/* Assignments List */}
       <Card>
         <CardHeader>
-          <CardTitle>Your Courses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {courses.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <GraduationCap className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>You are not enrolled in any courses yet.</p>
-              </div>
-            ) : (
-              courses.map((course) => (
-                <div
-                  key={course.id}
-                  data-testid="course-card"
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() =>
-                    router.push(`/dashboard/student/courses/${course.id}`)
-                  }
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="flex items-center space-x-4">
-                    <GraduationCap className="h-8 w-8 text-blue-500" />
-                    <div>
-                      <h3 className="font-medium text-gray-900">{course.name}</h3>
-                      <p className="text-sm text-gray-500">{course.code}</p>
-                      <div className="flex items-center space-x-4 mt-1 text-sm text-gray-600">
-                        <span>{course.assignments_count} assignments</span>
-                        <span className="text-green-600">
-                          {course.submitted_count} submitted
-                        </span>
-                        {course.pending_count > 0 && (
-                          <span className="text-yellow-600">
-                            {course.pending_count} pending
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Assignments */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Assignments</CardTitle>
+          <CardTitle>Assignments</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {assignments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-12 text-gray-500">
                 <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>
-                  No assignments found. You may not be enrolled in any courses
-                  yet.
+                <p className="text-lg font-medium">No assignments yet</p>
+                <p className="text-sm mt-1">
+                  Your instructor hasn&apos;t published any assignments for this
+                  course yet.
                 </p>
               </div>
             ) : (
               assignments.map((assignment) => (
                 <div
                   key={assignment.id}
+                  data-testid="assignment-card"
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                 >
                   <div className="flex items-center space-x-4">
                     {getStatusIcon(assignment)}
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">
-                        {assignment.title}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-gray-900">
+                          {assignment.title}
+                        </h3>
+                        {getStatusBadge(assignment)}
+                      </div>
                       <p className="text-sm text-gray-500">
-                        {assignment.course?.code || "Unknown Course"} • Due:{" "}
-                        {new Date(assignment.due_date).toLocaleDateString()}
+                        Due: {new Date(assignment.due_date).toLocaleDateString()}
                         {isAssignmentOverdue(assignment.due_date) && (
                           <span className="text-red-500 ml-2">(Overdue)</span>
                         )}
+                        {" • "}
+                        {assignment.max_points} points
                       </p>
                       {assignment.description && (
                         <p className="text-sm text-gray-600 mt-1 line-clamp-2">
@@ -331,30 +320,33 @@ export function StudentDashboardContent({
                             <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
-                          
-                          {assignment.submission.status === "graded" && (() => {
-                            const existingRequest = regradeRequests.find(
-                              req => req.assignment_id === assignment.id
-                            );
-                            return (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  if (existingRequest) {
-                                    setViewingRequest(existingRequest);
-                                    setIsViewRequestModalOpen(true);
-                                  } else {
-                                    handleRequestRegrade(assignment);
-                                  }
-                                }}
-                                className="text-orange-600 hover:text-orange-700 border-orange-300 hover:border-orange-400"
-                              >
-                                <AlertCircle className="h-4 w-4 mr-1" />
-                                {existingRequest ? "View Regrade Request" : "Request Regrade"}
-                              </Button>
-                            );
-                          })()}
+
+                          {assignment.submission.status === "graded" &&
+                            (() => {
+                              const existingRequest = regradeRequests.find(
+                                (req) => req.assignment_id === assignment.id
+                              );
+                              return (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (existingRequest) {
+                                      setViewingRequest(existingRequest);
+                                      setIsViewRequestModalOpen(true);
+                                    } else {
+                                      handleRequestRegrade(assignment);
+                                    }
+                                  }}
+                                  className="text-orange-600 hover:text-orange-700 border-orange-300 hover:border-orange-400"
+                                >
+                                  <AlertCircle className="h-4 w-4 mr-1" />
+                                  {existingRequest
+                                    ? "View Regrade Request"
+                                    : "Request Regrade"}
+                                </Button>
+                              );
+                            })()}
                         </>
                       )}
 
@@ -416,7 +408,7 @@ export function StudentDashboardContent({
             setIsRegradeModalOpen(false);
             setRegradeAssignment(null);
             setRubricData(null);
-            loadRegradeRequests(); // Reload to show the new request
+            loadRegradeRequests();
           }}
           submissionId={regradeAssignment.submission.id}
           assignmentId={regradeAssignment.id}

@@ -263,7 +263,13 @@ export function InstructorDashboardContent({
                   courses.map((course) => (
                     <div
                       key={course.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                      data-testid="course-card"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() =>
+                        router.push(`/dashboard/instructor/courses/${course.id}`)
+                      }
+                      role="button"
+                      tabIndex={0}
                     >
                       <div>
                         <h3 className="font-medium text-gray-900">
@@ -278,7 +284,7 @@ export function InstructorDashboardContent({
                         </div>
                       </div>
 
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant="outline"
