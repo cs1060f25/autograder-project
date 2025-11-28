@@ -172,6 +172,8 @@ export async function submitRegradeRequest(
     }
 
     // Create the regrade request
+    // The database has a unique constraint on (submission_id, rubric_item_id) for pending requests
+    // This prevents race conditions where duplicate requests could be created
     const { data: request, error: insertError } = await supabase
       .from("regrade_requests")
       .insert({
@@ -189,6 +191,16 @@ export async function submitRegradeRequest(
 
     if (insertError) {
       console.error("Error creating regrade request:", insertError);
+      
+      // Check if this is a unique constraint violation (race condition caught by database)
+      // PostgreSQL error code 23505 is for unique_violation
+      if (insertError.code === '23505' || insertError.message?.includes('unique_pending_regrade_request')) {
+        return {
+          success: false,
+          error: "A regrade request for this rubric item already exists. This may have been created by a concurrent request.",
+        };
+      }
+      
       return {
         success: false,
         error: "Failed to create regrade request",
