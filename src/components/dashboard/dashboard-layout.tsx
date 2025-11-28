@@ -52,14 +52,17 @@ export function DashboardLayout({
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
+              <Link
+                href="/profile"
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors hover:underline"
+              >
                 <span className="font-medium">
                   {userProfile.first_name} {userProfile.last_name}
                 </span>
                 <span className="ml-2 text-gray-400">
                   ({getRoleDisplayName(userProfile.role)})
                 </span>
-              </div>
+              </Link>
 
               <NotificationBell />
 
