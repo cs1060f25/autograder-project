@@ -57,6 +57,26 @@ export async function GET(request: NextRequest) {
   const encrypted_next = searchParams.get("next");
   const next = encrypted_next ? decodeURIComponent(encrypted_next) : "/";
 
+  // Check for OAuth error parameters from Supabase
+  const error = searchParams.get("error");
+  const errorCode = searchParams.get("error_code");
+  const errorDescription = searchParams.get("error_description");
+
+  if (error || errorCode) {
+    // Forward error parameters to login page
+    const loginUrl = new URL("/login", request.url);
+    if (error) {
+      loginUrl.searchParams.set("error", error);
+    }
+    if (errorCode) {
+      loginUrl.searchParams.set("error_code", errorCode);
+    }
+    if (errorDescription) {
+      loginUrl.searchParams.set("error_description", errorDescription);
+    }
+    return NextResponse.redirect(loginUrl);
+  }
+
   if (code) {
     // OAuth callback
     const supabase = await createClient();
