@@ -516,6 +516,313 @@ export async function getInstructorData(userProfile: UserProfile): Promise<{
   };
 }
 
+// Course Detail Data Functions
+export async function getCourseById(courseId: string): Promise<Course | null> {
+  const supabase = await createClient();
+
+  const { data: course, error } = await supabase
+    .from("courses")
+    .select("*")
+    .eq("id", courseId)
+    .single();
+
+  if (error || !course) {
+    return null;
+  }
+
+  return course;
+}
+
+export async function getCourseAssignments(
+  courseId: string,
+  includeStats: boolean = true
+): Promise<
+  (Assignment & {
+    submissions_count: number;
+    graded_count: number;
+    average_grade: number | null;
+  })[]
+> {
+  const supabase = await createClient();
+
+  const { data: assignments, error } = await supabase
+    .from("assignments")
+    .select(
+      `
+      *,
+      course:course_id (
+        id,
+        name,
+        code
+      )
+    `
+    )
+    .eq("course_id", courseId)
+    .order("created_at", { ascending: false });
+
+  if (error || !assignments) {
+    return [];
+  }
+
+  if (!includeStats) {
+    return assignments.map((a) => ({
+      ...a,
+      submissions_count: 0,
+      graded_count: 0,
+      average_grade: null,
+    }));
+  }
+
+  // Get stats for each assignment
+  const assignmentsWithStats = await Promise.all(
+    assignments.map(async (assignment) => {
+      const { data: submissions } = await supabase
+        .from("submissions")
+        .select("id, status, grade")
+        .eq("assignment_id", assignment.id);
+
+      const submissions_count = submissions?.length || 0;
+      const graded_count =
+        submissions?.filter((s) => s.status === "graded").length || 0;
+      const grades =
+        submissions?.filter((s) => s.grade !== null).map((s) => s.grade!) || [];
+      const average_grade =
+        grades.length > 0
+          ? grades.reduce((a, b) => a + b, 0) / grades.length
+          : null;
+
+      return {
+        ...assignment,
+        submissions_count,
+        graded_count,
+        average_grade,
+      };
+    })
+  );
+
+  return assignmentsWithStats;
+}
+
+export async function getInstructorCourseDetail(
+  courseId: string,
+  userProfile: UserProfile
+): Promise<{
+  course: Course & {
+    assignments_count: number;
+    students_count: number;
+    average_grade: number | null;
+  };
+  assignments: (Assignment & {
+    submissions_count: number;
+    graded_count: number;
+    average_grade: number | null;
+  })[];
+} | null> {
+  const supabase = await createClient();
+
+  // Get course and verify ownership
+  const { data: course, error } = await supabase
+    .from("courses")
+    .select("*")
+    .eq("id", courseId)
+    .eq("instructor_id", userProfile.id)
+    .single();
+
+  if (error || !course) {
+    return null;
+  }
+
+  // Get assignment count
+  const { count: assignmentsCount } = await supabase
+    .from("assignments")
+    .select("*", { count: "exact", head: true })
+    .eq("course_id", courseId);
+
+  // Get student count
+  const { count: studentsCount } = await supabase
+    .from("course_enrollments")
+    .select("*", { count: "exact", head: true })
+    .eq("course_id", courseId);
+
+  // Get assignments with stats
+  const assignments = await getCourseAssignments(courseId);
+
+  // Calculate average grade
+  const allGrades = assignments.flatMap((a) =>
+    a.average_grade ? [a.average_grade] : []
+  );
+  const average_grade =
+    allGrades.length > 0
+      ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length
+      : null;
+
+  return {
+    course: {
+      ...course,
+      assignments_count: assignmentsCount || 0,
+      students_count: studentsCount || 0,
+      average_grade,
+    },
+    assignments,
+  };
+}
+
+// Student Course Data Functions
+export async function getStudentEnrolledCourses(
+  userProfile: UserProfile
+): Promise<
+  (Course & {
+    assignments_count: number;
+    pending_count: number;
+    submitted_count: number;
+  })[]
+> {
+  const supabase = await createClient();
+
+  // Get courses the student is enrolled in
+  const { data: enrollments } = await supabase
+    .from("course_enrollments")
+    .select(
+      `
+      course_id,
+      course:course_id (
+        id,
+        name,
+        code,
+        description,
+        instructor_id,
+        semester,
+        year,
+        created_at,
+        updated_at
+      )
+    `
+    )
+    .eq("student_id", userProfile.id);
+
+  if (!enrollments || enrollments.length === 0) {
+    return [];
+  }
+
+  // Get stats for each course
+  const coursesWithStats = await Promise.all(
+    enrollments.map(async (enrollment) => {
+      const course = enrollment.course as unknown as Course;
+
+      // Get published assignments for this course
+      const { data: assignments } = await supabase
+        .from("assignments")
+        .select("id")
+        .eq("course_id", course.id)
+        .eq("status", "published");
+
+      const assignmentIds = assignments?.map((a) => a.id) || [];
+
+      // Get submissions for these assignments
+      const { data: submissions } = await supabase
+        .from("submissions")
+        .select("assignment_id, status")
+        .eq("student_id", userProfile.id)
+        .in("assignment_id", assignmentIds);
+
+      const submittedAssignmentIds = new Set(
+        submissions
+          ?.filter((s) => s.status === "submitted" || s.status === "graded")
+          .map((s) => s.assignment_id) || []
+      );
+
+      return {
+        ...course,
+        assignments_count: assignmentIds.length,
+        submitted_count: submittedAssignmentIds.size,
+        pending_count: assignmentIds.length - submittedAssignmentIds.size,
+      };
+    })
+  );
+
+  return coursesWithStats;
+}
+
+export async function getStudentCourseDetail(
+  courseId: string,
+  userProfile: UserProfile
+): Promise<{
+  course: Course;
+  assignments: (Assignment & { submission?: Submission })[];
+} | null> {
+  const supabase = await createClient();
+
+  // Verify student is enrolled in this course
+  const { data: enrollment } = await supabase
+    .from("course_enrollments")
+    .select("course_id")
+    .eq("course_id", courseId)
+    .eq("student_id", userProfile.id)
+    .single();
+
+  if (!enrollment) {
+    return null;
+  }
+
+  // Get course
+  const { data: course } = await supabase
+    .from("courses")
+    .select("*")
+    .eq("id", courseId)
+    .single();
+
+  if (!course) {
+    return null;
+  }
+
+  // Get published assignments for this course
+  const { data: assignments } = await supabase
+    .from("assignments")
+    .select(
+      `
+      *,
+      course:course_id (
+        id,
+        name,
+        code
+      )
+    `
+    )
+    .eq("course_id", courseId)
+    .eq("status", "published")
+    .order("due_date", { ascending: true });
+
+  if (!assignments) {
+    return { course, assignments: [] };
+  }
+
+  // Get submissions for these assignments
+  const { data: submissions } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("student_id", userProfile.id)
+    .in(
+      "assignment_id",
+      assignments.map((a) => a.id)
+    );
+
+  // Combine assignments with submissions
+  const assignmentsWithSubmissions = assignments.map((assignment) => {
+    const submission = submissions?.find(
+      (s) => s.assignment_id === assignment.id
+    );
+    return {
+      ...assignment,
+      submission,
+    };
+  });
+
+  return {
+    course,
+    assignments: assignmentsWithSubmissions,
+  };
+}
+
 // Score Distribution Data
 export interface ScoreDistribution {
   mean: number;
