@@ -84,10 +84,18 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("OAuth error:", error);
-      if (error.message.includes("Multiple accounts with the same email")) {
+      const msg = error.message || "";
+
+      // Handle duplicate-email / identity-conflict errors from Supabase
+      if (
+        msg.includes("Multiple accounts with the same email") ||
+        msg.includes(
+          "A user with this email address has already been registered"
+        )
+      ) {
         return NextResponse.redirect(
           new URL(
-            "/login?error=An account with this email already exists.",
+            "/login?error=An account with this email already exists. Please log in with your original method, then link additional providers in your profile settings.",
             request.url
           )
         );
@@ -95,10 +103,7 @@ export async function GET(request: NextRequest) {
 
       // Redirect on auth error
       return NextResponse.redirect(
-        new URL(
-          `/login?error=${encodeURIComponent(error.message)}`,
-          request.url
-        )
+        new URL(`/login?error=${encodeURIComponent(msg)}`, request.url)
       );
     }
 

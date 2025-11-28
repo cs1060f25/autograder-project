@@ -17,6 +17,7 @@ export interface UserProfile {
   phone_country_code?: string;
   created_at: string;
   updated_at: string;
+  linked_providers?: string[];
 }
 
 export async function getUserProfile(): Promise<UserProfile | null> {
@@ -29,6 +30,9 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   if (!user) {
     return null;
   }
+
+  const linkedProviders =
+    user.identities?.map((identity) => identity.provider).filter(Boolean) ?? [];
 
   const { data: userData, error } = await supabase
     .from("users")
@@ -52,6 +56,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     phone_country_code: userData.phone_country_code || "US",
     created_at: userData.created_at,
     updated_at: userData.updated_at,
+    linked_providers: linkedProviders,
   };
 }
 

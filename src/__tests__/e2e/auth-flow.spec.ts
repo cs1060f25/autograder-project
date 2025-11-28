@@ -426,9 +426,10 @@ test.describe("OAuth Identity Conflict Handling", () => {
         )}`
       );
 
+      // The app should display a user-friendly message with instructions to link from profile
       await expect(
         page.getByText(
-          /A user with this email address has already been registered/i
+          /An account with this email already exists\. Please log in with your original method, then link additional providers in your profile settings\./i
         )
       ).toBeVisible();
     } finally {
