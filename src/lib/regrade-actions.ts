@@ -68,6 +68,33 @@ export async function submitRegradeRequest(
       };
     }
 
+    // Rate limiting: Check number of pending requests in the last 24 hours
+    const RATE_LIMIT = 10; // Maximum requests per 24 hours
+    const RATE_LIMIT_WINDOW_HOURS = 24;
+    const windowStart = new Date();
+    windowStart.setHours(windowStart.getHours() - RATE_LIMIT_WINDOW_HOURS);
+
+    const { count: recentRequestCount, error: countError } = await supabase
+      .from("regrade_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("student_id", userProfile.id)
+      .gte("created_at", windowStart.toISOString());
+
+    if (countError) {
+      console.error("Error checking rate limit:", countError);
+      return {
+        success: false,
+        error: "Failed to verify rate limit",
+      };
+    }
+
+    if (recentRequestCount !== null && recentRequestCount >= RATE_LIMIT) {
+      return {
+        success: false,
+        error: `You have exceeded the maximum number of regrade requests (${RATE_LIMIT}) in the last ${RATE_LIMIT_WINDOW_HOURS} hours. Please try again later.`,
+      };
+    }
+
     // Verify the rubric score exists and belongs to this submission
     const { data: rubricScore, error: rubricScoreError } = await supabase
       .from("rubric_scores")
@@ -145,6 +172,8 @@ export async function submitRegradeRequest(
     }
 
     // Create the regrade request
+    // The database has a unique constraint on (submission_id, rubric_item_id) for pending requests
+    // This prevents race conditions where duplicate requests could be created
     const { data: request, error: insertError } = await supabase
       .from("regrade_requests")
       .insert({
@@ -162,6 +191,16 @@ export async function submitRegradeRequest(
 
     if (insertError) {
       console.error("Error creating regrade request:", insertError);
+      
+      // Check if this is a unique constraint violation (race condition caught by database)
+      // PostgreSQL error code 23505 is for unique_violation
+      if (insertError.code === '23505' || insertError.message?.includes('unique_pending_regrade_request')) {
+        return {
+          success: false,
+          error: "A regrade request for this rubric item already exists. This may have been created by a concurrent request.",
+        };
+      }
+      
       return {
         success: false,
         error: "Failed to create regrade request",
