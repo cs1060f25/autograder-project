@@ -554,8 +554,10 @@ describe("24-Hour Grace Period for Submissions", () => {
           error: null,
         });
 
-      mockSupabaseClient.update.mockResolvedValue({
-        error: null,
+      mockSupabaseClient.update.mockReturnValue({
+        eq: jest.fn().mockResolvedValue({
+          error: null,
+        }),
       });
 
       const result = await createSubmission(

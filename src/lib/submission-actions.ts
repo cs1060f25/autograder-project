@@ -58,11 +58,18 @@ export async function createSubmission(
     return { success: false, error: "Assignment not found or not published" };
   }
 
-  // Check if due date has passed
+  // Check if due date has passed with 24-hour grace period
   const now = new Date();
   const dueDate = new Date(assignment.due_date);
-  if (now > dueDate) {
-    return { success: false, error: "Assignment due date has passed" };
+  const gracePeriodEnd = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours after due date
+  const isLate = now > dueDate && now <= gracePeriodEnd;
+
+  // Reject if past grace period (24 hours after due date)
+  if (now > gracePeriodEnd) {
+    return {
+      success: false,
+      error: "Assignment is no longer accepting submissions. The 24-hour grace period has ended.",
+    };
   }
 
   // Check if student is enrolled in the course
@@ -95,6 +102,7 @@ export async function createSubmission(
         status: "submitted",
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        is_late: isLate,
       })
       .eq("id", existingSubmission.id);
 
@@ -110,6 +118,7 @@ export async function createSubmission(
       attachments,
       status: "submitted",
       submitted_at: new Date().toISOString(),
+      is_late: isLate,
     });
 
     if (error) {
@@ -249,11 +258,17 @@ export async function uploadSubmissionDocument(
     return { success: false, error: "Assignment not found or not published" };
   }
 
-  // Check if due date has passed
+  // Check if due date has passed with 24-hour grace period
   const now = new Date();
   const dueDate = new Date(assignment.due_date);
-  if (now > dueDate) {
-    return { success: false, error: "Assignment due date has passed. Cannot upload documents." };
+  const gracePeriodEnd = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours after due date
+
+  // Reject if past grace period (24 hours after due date)
+  if (now > gracePeriodEnd) {
+    return {
+      success: false,
+      error: "Assignment is no longer accepting submissions. The 24-hour grace period has ended. Cannot upload documents.",
+    };
   }
 
   // Verify student is enrolled in the course
@@ -408,7 +423,7 @@ export async function deleteSubmissionDocument(
     return { success: false, error: "Cannot delete files from a graded submission" };
   }
 
-  // Verify assignment due date hasn't passed
+  // Verify assignment due date hasn't passed (including grace period)
   const { data: assignment } = await supabase
     .from("assignments")
     .select("due_date")
@@ -418,8 +433,13 @@ export async function deleteSubmissionDocument(
   if (assignment) {
     const now = new Date();
     const dueDate = new Date(assignment.due_date);
-    if (now > dueDate) {
-      return { success: false, error: "Cannot delete files after the due date" };
+    const gracePeriodEnd = new Date(dueDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours after due date
+    
+    if (now > gracePeriodEnd) {
+      return {
+        success: false,
+        error: "Cannot delete files after the grace period has ended",
+      };
     }
   }
 
