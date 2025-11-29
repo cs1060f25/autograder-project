@@ -183,6 +183,29 @@ export async function createAssignmentAction(formData: FormData) {
     instructions: formData.get("instructions") as string,
   };
 
+  // Validate due date is not in the past for published/closed assignments
+  // Draft assignments are allowed to have past due dates (for cloning, testing, etc.)
+  if (assignmentData.status !== "draft") {
+    const dueDate = new Date(assignmentData.due_date);
+    const now = new Date();
+
+    // Check if date is valid
+    if (isNaN(dueDate.getTime())) {
+      return {
+        success: false,
+        error: "Invalid due date format. Please select a valid date and time.",
+      };
+    }
+
+    // Check if due date is in the past (with 1 minute grace period to handle clock skew)
+    if (dueDate.getTime() < now.getTime() - 60000) {
+      return {
+        success: false,
+        error: "Due date must be in the future. Please select a later date and time.",
+      };
+    }
+  }
+
   const { data: assignment, error } = await supabase
     .from("assignments")
     .insert(assignmentData)
@@ -238,6 +261,29 @@ export async function updateAssignmentAction(
     instructions: formData.get("instructions") as string,
     updated_at: new Date().toISOString(),
   };
+
+  // Validate due date is not in the past for published/closed assignments
+  // Draft assignments are allowed to have past due dates (for cloning, testing, etc.)
+  if (assignmentData.status !== "draft") {
+    const dueDate = new Date(assignmentData.due_date);
+    const now = new Date();
+
+    // Check if date is valid
+    if (isNaN(dueDate.getTime())) {
+      return {
+        success: false,
+        error: "Invalid due date format. Please select a valid date and time.",
+      };
+    }
+
+    // Check if due date is in the past (with 1 minute grace period to handle clock skew)
+    if (dueDate.getTime() < now.getTime() - 60000) {
+      return {
+        success: false,
+        error: "Due date must be in the future. Please select a later date and time.",
+      };
+    }
+  }
 
   const { error } = await supabase
     .from("assignments")

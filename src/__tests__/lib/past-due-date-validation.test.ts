@@ -84,7 +84,7 @@ describe("Past Due Date Validation", () => {
       const result = await createAssignmentAction(formData);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("due date");
+      expect(result.error).toMatch(/due date/i);
       expect(result.error).toMatch(/past|future/i);
       
       // Verify that the database insert was NOT called
@@ -110,7 +110,7 @@ describe("Past Due Date Validation", () => {
       const result = await createAssignmentAction(formData);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("due date");
+      expect(result.error).toMatch(/due date/i);
       expect(mockSupabaseClient.insert).not.toHaveBeenCalled();
     });
 
@@ -228,7 +228,7 @@ describe("Past Due Date Validation", () => {
       const result = await updateAssignmentAction("assignment-123", formData);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("due date");
+      expect(result.error).toMatch(/due date/i);
       expect(result.error).toMatch(/past|future/i);
       expect(mockSupabaseClient.update).not.toHaveBeenCalled();
     });
@@ -361,7 +361,7 @@ describe("Past Due Date Validation", () => {
       expect(mockRequireAuth).toHaveBeenCalled();
       // But due date validation should also fail
       expect(result.success).toBe(false);
-      expect(result.error).toContain("due date");
+      expect(result.error).toMatch(/due date/i);
     });
   });
 });

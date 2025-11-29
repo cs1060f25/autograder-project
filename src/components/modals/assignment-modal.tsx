@@ -50,6 +50,13 @@ export function AssignmentModal({
   const [showRubric, setShowRubric] = useState(false);
   const [rubricCriteria, setRubricCriteria] = useState<RubricCriterion[]>([]);
   const [maxPoints, setMaxPoints] = useState(assignment?.max_points || 100);
+  const [dueDate, setDueDate] = useState<string>(
+    assignment?.due_date
+      ? new Date(assignment.due_date).toISOString().slice(0, 16)
+      : ""
+  );
+  const [status, setStatus] = useState<string>(assignment?.status || "draft");
+  const [dueDateWarning, setDueDateWarning] = useState<string | null>(null);
   const router = useRouter();
 
   // Load existing rubric when editing
@@ -162,11 +169,57 @@ export function AssignmentModal({
     );
   };
 
+  const validateDueDate = (dateString: string, currentStatus: string) => {
+    if (!dateString || currentStatus === "draft") {
+      setDueDateWarning(null);
+      return true;
+    }
+
+    const selectedDate = new Date(dateString);
+    const now = new Date();
+
+    // Check if date is valid
+    if (isNaN(selectedDate.getTime())) {
+      setDueDateWarning("Invalid date format");
+      return false;
+    }
+
+    // Check if date is in the past (with 1 minute grace period)
+    if (selectedDate.getTime() < now.getTime() - 60000) {
+      setDueDateWarning("Due date is in the past. Students will see this assignment as overdue immediately.");
+      return false;
+    }
+
+    setDueDateWarning(null);
+    return true;
+  };
+
+  const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setDueDate(newDate);
+    validateDueDate(newDate, status);
+  };
+
+  const handleStatusChange = (newStatus: string) => {
+    setStatus(newStatus);
+    validateDueDate(dueDate, newStatus);
+  };
+
   const handleSubmit = async (formData: FormData) => {
     setIsSubmitting(true);
     setError(null);
 
     try {
+      // Client-side validation for due date
+      const dueDateValue = formData.get("due_date") as string;
+      const statusValue = formData.get("status") as string;
+      
+      if (!validateDueDate(dueDateValue, statusValue)) {
+        setError("Due date must be in the future for published or closed assignments.");
+        setIsSubmitting(false);
+        return;
+      }
+
       // Validate rubric if enabled
       if (showRubric && rubricCriteria.length > 0) {
         const totalPoints = getTotalPoints();
@@ -326,20 +379,24 @@ export function AssignmentModal({
                 id="due_date"
                 name="due_date"
                 type="datetime-local"
-                defaultValue={
-                  assignment?.due_date
-                    ? new Date(assignment.due_date).toISOString().slice(0, 16)
-                    : ""
-                }
+                value={dueDate}
+                onChange={handleDueDateChange}
                 required
               />
+              {dueDateWarning && status !== "draft" && (
+                <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>{dueDateWarning}</span>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="status">Status</Label>
               <Select
                 name="status"
-                defaultValue={assignment?.status || "draft"}
+                value={status}
+                onValueChange={handleStatusChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -350,6 +407,12 @@ export function AssignmentModal({
                   <SelectItem value="closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
+              {status === "draft" && dueDate && new Date(dueDate) < new Date() && (
+                <div className="flex items-start gap-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>Draft assignments can have past due dates. This will be validated when you publish.</span>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-2">
