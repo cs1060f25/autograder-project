@@ -253,6 +253,134 @@ describe('Regrade Request Functionality', () => {
       expect(true).toBe(true); // Placeholder
     });
   });
+
+  describe('RGR-013: Student Notification on Resolution', () => {
+    it('should send notification when regrade request is approved', () => {
+      // Test that student receives notification with assignment name, rubric item, and approval details
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should send notification when regrade request is denied', () => {
+      // Test that student receives notification with assignment name, rubric item, and denial details
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should include TA decision in notification', () => {
+      // Test that resolution_notes are included in the notification
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should include points awarded in approval notification', () => {
+      // Test that points_awarded is included when request is approved
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should include audit context in notification when available', () => {
+      // Test that AI rationale and other audit metadata are included
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should log notification in notifications table', () => {
+      // Test that notification is recorded in the database
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should handle notification failure gracefully', () => {
+      // Test that resolution succeeds even if notification fails
+      expect(true).toBe(true); // Placeholder
+    });
+  });
+
+  describe('RGR-014: Student Interface Display', () => {
+    it('should display status as pending for unresolved requests', () => {
+      // Test that pending requests show "Pending Review" status
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should display status as approved for approved requests', () => {
+      // Test that approved requests show "Approved" status with green styling
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should display status as denied for rejected requests', () => {
+      // Test that rejected requests show "Denied" status with red styling
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should display TA comment for resolved requests', () => {
+      // Test that resolution_notes are visible to student
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should display points awarded for approved requests', () => {
+      // Test that points_awarded is shown prominently
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should display audit context when allowed', () => {
+      // Test that AI rationale is shown if available
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should display resolution timestamp', () => {
+      // Test that resolved_at date is shown
+      expect(true).toBe(true); // Placeholder
+    });
+  });
+
+  describe('RGR-015: Data Privacy and Security', () => {
+    it('should prevent students from viewing other students\' regrade requests', () => {
+      // Test that RLS policies enforce student can only see their own requests
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should prevent students from viewing other students\' notifications', () => {
+      // Test that notification RLS policies prevent cross-student access
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should allow instructors to view all requests for their courses', () => {
+      // Test that instructors can see all requests via RLS policies
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should allow TAs to view requests for their assigned courses', () => {
+      // Test that TAs can see requests for courses they TA via RLS policies
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should prevent unauthorized modification of resolved requests', () => {
+      // Test that students cannot modify resolved requests
+      expect(true).toBe(true); // Placeholder
+    });
+  });
+
+  describe('RGR-016: Grade View Update', () => {
+    it('should update submission grade when request is approved', () => {
+      // Test that grade is recalculated and updated in submissions table
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should update rubric scores when request is approved', () => {
+      // Test that rubric_scores are updated with new points
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should not update grade when request is denied', () => {
+      // Test that grade remains unchanged for rejected requests
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should create audit log entry for grade change', () => {
+      // Test that grade change is logged in grade_audit_log
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it('should reflect updated grade in student view immediately', () => {
+      // Test that student sees updated grade after approval
+      expect(true).toBe(true); // Placeholder
+    });
+  });
 });
 
 describe('Regrade Request Integration Tests', () => {

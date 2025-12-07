@@ -49,6 +49,8 @@ export function ViewRegradeRequestModal({
   const maxPoints = auditMetadata?.max_points || 0;
   const originalDeduction = auditMetadata?.original_deduction || 0;
   const originalScore = maxPoints - originalDeduction;
+  const isResolved = request.status === 'approved' || request.status === 'rejected';
+  const isApproved = request.status === 'approved';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -56,7 +58,7 @@ export function ViewRegradeRequestModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {getStatusIcon()}
-            Regrade Request
+            Regrade Request {isResolved ? (isApproved ? '- Approved' : '- Denied') : ''}
           </DialogTitle>
           <DialogDescription>
             {request.assignments?.title || "Assignment"}
@@ -65,13 +67,36 @@ export function ViewRegradeRequestModal({
 
         <div className="space-y-4">
           {/* Status */}
-          <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div>
-              <p className="text-sm text-gray-600">Status</p>
-              <p className="font-medium text-gray-900">Waiting for instructor/TA review</p>
+          {request.status === 'pending' && (
+            <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600">Status</p>
+                <p className="font-medium text-gray-900">Waiting for instructor/TA review</p>
+              </div>
+              <Badge className="bg-yellow-500">Pending Review</Badge>
             </div>
-            <Badge className="bg-yellow-500">Pending Review</Badge>
-          </div>
+          )}
+
+          {isResolved && (
+            <div className={`flex items-center justify-between p-3 rounded-lg ${
+              isApproved 
+                ? 'bg-green-50 border border-green-200' 
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              <div>
+                <p className="text-sm text-gray-600">Status</p>
+                <p className={`font-medium ${isApproved ? 'text-green-900' : 'text-red-900'}`}>
+                  {isApproved ? 'Your request has been approved!' : 'Your request has been denied'}
+                </p>
+                {request.resolved_at && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Resolved on {new Date(request.resolved_at).toLocaleString()}
+                  </p>
+                )}
+              </div>
+              {getStatusBadge()}
+            </div>
+          )}
 
           {/* Rubric Item & Scoring */}
           {auditMetadata && (
@@ -111,12 +136,69 @@ export function ViewRegradeRequestModal({
             </div>
           </div>
 
+          {/* Resolution Details (if resolved) */}
+          {isResolved && (
+            <>
+              {/* Points Awarded (if approved) */}
+              {isApproved && request.points_awarded !== null && request.points_awarded !== undefined && (
+                <div className="border border-green-300 rounded-lg p-4 bg-green-50">
+                  <h3 className="font-semibold text-lg text-green-900 mb-2">Points Awarded</h3>
+                  <div className="text-center bg-white rounded p-3">
+                    <p className="text-3xl font-bold text-green-700">
+                      {request.points_awarded} / {maxPoints}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Your grade has been updated
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* TA/Instructor Comment */}
+              {request.resolution_notes && (
+                <div className={`border rounded-lg p-4 ${
+                  isApproved ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                }`}>
+                  <h3 className={`font-semibold text-lg mb-2 ${
+                    isApproved ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    TA/Instructor Comment
+                  </h3>
+                  <div className="bg-white rounded p-3">
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                      {request.resolution_notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Grading Context (if available) */}
+              {auditMetadata?.ai_rationale && (
+                <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                  <h3 className="font-semibold text-lg text-blue-900 mb-2">Original AI Grading Context</h3>
+                  <div className="bg-white rounded p-3">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {auditMetadata.ai_rationale}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Submission Date */}
           <div className="text-sm text-gray-600">
             <p>Submitted: {new Date(request.created_at).toLocaleString()}</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Your instructor or TA will review this request and respond soon.
-            </p>
+            {!isResolved && (
+              <p className="text-xs text-gray-500 mt-1">
+                Your instructor or TA will review this request and respond soon.
+              </p>
+            )}
+            {isResolved && !isApproved && (
+              <p className="text-xs text-gray-500 mt-1">
+                If you have further questions about this decision, please contact your instructor.
+              </p>
+            )}
           </div>
 
           {/* Close Button */}
