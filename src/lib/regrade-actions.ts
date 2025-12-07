@@ -523,6 +523,26 @@ export async function resolveRegradeRequest(
       }
     }
 
+    // Notify student about the resolution
+    const { data: assignmentData } = await supabase
+      .from("assignments")
+      .select("title")
+      .eq("id", request.assignment_id)
+      .single();
+
+    const rubricItemName = request.audit_metadata?.rubric_criterion_text || "Rubric Item";
+    
+    await notifyStudentAboutRegradeResolution(
+      request.student_id,
+      assignmentData?.title || "Assignment",
+      rubricItemName,
+      params.status,
+      params.resolutionNotes,
+      params.pointsAwarded,
+      request.audit_metadata?.max_points,
+      request.audit_metadata
+    ).catch(err => console.error("Failed to send notification:", err));
+
     return {
       success: true,
       request: updatedRequest,
@@ -888,5 +908,40 @@ async function notifyTAsAboutRegradeRequest(
   } catch (error) {
     console.error("Error notifying TAs about regrade request:", error);
     // Don't fail the request if notification fails
+  }
+}
+
+/**
+ * Notify student about regrade request resolution
+ */
+async function notifyStudentAboutRegradeResolution(
+  studentId: string,
+  assignmentTitle: string,
+  rubricItemName: string,
+  status: 'approved' | 'rejected',
+  resolutionNotes: string,
+  pointsAwarded?: number,
+  maxPoints?: number,
+  auditMetadata?: any
+): Promise<void> {
+  try {
+    const { createNotificationService, NotificationEventType } = await import("@/services/notifications");
+    const service = createNotificationService();
+
+    await service.handleEvent({
+      type: NotificationEventType.REGRADE_REQUEST_RESOLVED,
+      studentId,
+      assignmentTitle,
+      rubricItemName,
+      status,
+      resolutionNotes,
+      pointsAwarded,
+      maxPoints,
+      auditMetadata,
+      timestamp: new Date().toISOString(),
+    } as any);
+  } catch (error) {
+    console.error("Error notifying student about regrade resolution:", error);
+    // Don't fail the resolution if notification fails
   }
 }
