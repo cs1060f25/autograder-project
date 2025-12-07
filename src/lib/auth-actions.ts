@@ -107,3 +107,40 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+type OAuthProvider = "google" | "github";
+
+async function linkProvider(provider: OAuthProvider) {
+  const supabase = await createClient();
+  const origin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const next = `/profile?link_success=${provider}`;
+
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider,
+    options: {
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
+  });
+
+  if (error) {
+    redirect(
+      `/profile?link_error=${encodeURIComponent(
+        error.message || "Unable to link account"
+      )}`
+    );
+  }
+
+  if (data?.url) {
+    redirect(data.url);
+  }
+
+  redirect("/profile");
+}
+
+export async function linkGoogleIdentity() {
+  await linkProvider("google");
+}
+
+export async function linkGitHubIdentity() {
+  await linkProvider("github");
+}

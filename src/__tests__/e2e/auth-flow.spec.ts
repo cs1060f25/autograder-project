@@ -7,6 +7,7 @@ import {
   updateUserMetadata,
   completeOnboardingForUser,
   createTestUser,
+  getSupabaseAdmin,
 } from "./test-helpers";
 
 test.describe("Google SSO - New User", () => {
@@ -372,5 +373,67 @@ test.describe("OAuth Button Presence", () => {
 
     await expect(googleButton).toBeVisible();
     await expect(githubButton).toBeVisible();
+  });
+});
+
+test.describe("OAuth Identity Conflict Handling", () => {
+  test("creates conflicting Supabase accounts via admin API and surfaces error", async ({
+    page,
+  }) => {
+    const supabase = getSupabaseAdmin();
+    const testEmail = generateTestEmail("oauth-conflict");
+    const password = "SecurePass123!";
+    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    await cleanupTestUser(testEmail);
+
+    try {
+      const { error: emailUserError } = await supabase.auth.admin.createUser({
+        email: testEmail,
+        password,
+        email_confirm: false,
+        app_metadata: {
+          provider: "email",
+          providers: ["email"],
+        },
+        user_metadata: {
+          full_name: "Conflict User",
+        },
+      });
+      expect(emailUserError).toBeNull();
+
+      const { error: googleUserError } = await supabase.auth.admin.createUser({
+        email: testEmail,
+        email_confirm: true,
+        app_metadata: {
+          provider: "google",
+          providers: ["google"],
+          provider_id: `google_${uniqueSuffix}`,
+        },
+        user_metadata: {
+          full_name: "Conflict User",
+        },
+      });
+      expect(googleUserError).toBeTruthy();
+      const conflictMessage = googleUserError?.message;
+      expect(conflictMessage).toContain(
+        "A user with this email address has already been registered"
+      );
+
+      await page.goto(
+        `/auth/callback?error=server_error&error_code=identity_already_exists&error_description=${encodeURIComponent(
+          conflictMessage || ""
+        )}`
+      );
+
+      // The app should display a user-friendly message with instructions to link from profile
+      await expect(
+        page.getByText(
+          /An account with this email already exists\. Please log in with your original method, then link additional providers in your profile settings\./i
+        )
+      ).toBeVisible();
+    } finally {
+      await cleanupTestUser(testEmail);
+    }
   });
 });

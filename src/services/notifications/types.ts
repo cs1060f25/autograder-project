@@ -21,6 +21,7 @@ export enum NotificationEventType {
   ASSIGNMENT_DUE_SOON = "assignment_due_soon",
   ASSIGNMENT_OVERDUE = "assignment_overdue",
   REGRADE_REQUEST_SUBMITTED = "regrade_request_submitted",
+  REGRADE_REQUEST_RESOLVED = "regrade_request_resolved",
 }
 
 // Notification status
@@ -69,6 +70,18 @@ export interface RegradeRequestEvent extends NotificationEvent {
   assignmentId: string;
   assignmentTitle: string;
   rubricItemId: string;
+}
+
+// Regrade resolution events
+export interface RegradeResolutionEvent extends NotificationEvent {
+  studentId: string; // Student being notified
+  assignmentTitle: string;
+  rubricItemName: string;
+  status: 'approved' | 'rejected';
+  resolutionNotes: string;
+  pointsAwarded?: number;
+  maxPoints?: number;
+  auditMetadata?: any;
 }
 
 // User contact information

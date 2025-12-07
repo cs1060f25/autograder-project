@@ -529,6 +529,63 @@ export class NotificationService {
         `;
         break;
 
+      case NotificationEventType.REGRADE_REQUEST_RESOLVED:
+        const resolutionEvent = event as any;
+        const isApproved = resolutionEvent.status === 'approved';
+        const statusColor = isApproved ? '#28a745' : '#dc3545';
+        const statusBgColor = isApproved ? '#d4edda' : '#f8d7da';
+        const statusText = isApproved ? 'Approved' : 'Denied';
+        const statusIcon = isApproved ? '✅' : '❌';
+        
+        subject = `Regrade Request ${statusText}: ${resolutionEvent.assignmentTitle}`;
+        body = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: ${statusBgColor}; border-radius: 8px; padding: 24px; margin-bottom: 20px;">
+              <h2 style="color: ${statusColor}; margin-top: 0;">${statusIcon} Regrade Request ${statusText}</h2>
+              <p style="font-size: 16px; margin-bottom: 8px;">Hello ${firstName},</p>
+              <p style="font-size: 16px;">Your regrade request for <strong>${resolutionEvent.assignmentTitle}</strong> has been reviewed and ${statusText.toLowerCase()}.</p>
+            </div>
+            
+            <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+              <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${resolutionEvent.assignmentTitle}</p>
+              <p style="margin: 0 0 12px 0;"><strong>Rubric Item:</strong> ${resolutionEvent.rubricItemName}</p>
+              <p style="margin: 0 0 12px 0;"><strong>Decision:</strong> <span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></p>
+              ${isApproved && resolutionEvent.pointsAwarded !== undefined ? `<p style="margin: 0;"><strong>Points Awarded:</strong> <span style="font-size: 18px; font-weight: 600; color: ${statusColor};">${resolutionEvent.pointsAwarded}${resolutionEvent.maxPoints ? ` / ${resolutionEvent.maxPoints}` : ''}</span></p>` : ''}
+            </div>
+            
+            ${resolutionEvent.resolutionNotes ? `
+            <div style="background-color: #f8f9fa; border-left: 4px solid ${statusColor}; padding: 16px; margin-bottom: 20px; border-radius: 4px;">
+              <p style="margin: 0 0 8px 0; font-weight: 600; color: #2c3e50;">TA/Instructor Comment:</p>
+              <p style="margin: 0; white-space: pre-wrap;">${resolutionEvent.resolutionNotes}</p>
+            </div>
+            ` : ''}
+            
+            ${resolutionEvent.auditMetadata?.ai_rationale ? `
+            <div style="background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 16px; margin-bottom: 20px; border-radius: 4px;">
+              <p style="margin: 0 0 8px 0; font-weight: 600; color: #2c3e50;">Original AI Grading Context:</p>
+              <p style="margin: 0; font-size: 14px; color: #495057;">${resolutionEvent.auditMetadata.ai_rationale}</p>
+            </div>
+            ` : ''}
+            
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${getDashboardUrl()}" style="display: inline-block; background-color: #007bff; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">View Updated Grade</a>
+            </div>
+            
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e1e4e8; color: #6c757d; font-size: 14px;">
+              <p style="margin: 0;">This is an automated notification from your course autograder system.</p>
+              ${!isApproved ? `<p style="margin: 8px 0 0 0;">If you have further questions about this decision, please contact your instructor.</p>` : ''}
+            </div>
+          </body>
+          </html>
+        `;
+        break;
+
       default:
         return null;
     }
@@ -590,6 +647,14 @@ export class NotificationService {
         const overdueUrl = overdueEvent.assignmentId ? getAssignmentUrl(overdueEvent.assignmentId) : getDashboardUrl();
         
         body = `⚠️ Hi ${firstName}, ${overdueCode ? `[${overdueCode}] ` : ""}${overdueName} is OVERDUE. Submit ASAP: ${overdueUrl}`;
+        break;
+
+      case NotificationEventType.REGRADE_REQUEST_RESOLVED:
+        const smsResolutionEvent = event as any;
+        const smsStatusText = smsResolutionEvent.status === 'approved' ? 'APPROVED' : 'DENIED';
+        const smsStatusIcon = smsResolutionEvent.status === 'approved' ? '✅' : '❌';
+        
+        body = `${smsStatusIcon} Hi ${firstName}, your regrade request for ${smsResolutionEvent.assignmentTitle} was ${smsStatusText}. Check details: ${getDashboardUrl()}`;
         break;
 
       default:

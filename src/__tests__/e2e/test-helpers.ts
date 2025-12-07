@@ -24,12 +24,22 @@ export async function cleanupTestUser(email: string) {
   const supabase = getSupabaseAdmin();
 
   try {
-    const { data: users } = await supabase.auth.admin.listUsers();
-    const testUser = users.users.find((u) => u.email === email);
+    const { data: users } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    const matches =
+      users?.users.filter(
+        (u) => u.email?.toLowerCase() === email.toLowerCase()
+      ) ?? [];
 
-    if (testUser) {
-      await supabase.auth.admin.deleteUser(testUser.id);
-      console.log(`Cleaned up test user: ${email}`);
+    if (!matches.length) {
+      return;
+    }
+
+    for (const user of matches) {
+      await supabase.auth.admin.deleteUser(user.id);
+      console.log(`Cleaned up test user: ${email} (${user.id})`);
     }
   } catch (error) {
     console.error(`Error cleaning up test user: ${error}`);

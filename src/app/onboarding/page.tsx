@@ -19,8 +19,15 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { Alert } from "@/components/ui/alert";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
+  const error = params?.error;
   const supabase = await createClient();
   const {
     data: { user },
@@ -32,13 +39,24 @@ export default async function OnboardingPage() {
 
   const { data: userData } = await supabase
     .from("users")
-    .select("onboarding_completed")
+    .select("onboarding_completed, first_name, last_name")
     .eq("id", user.id)
     .single();
 
   if (userData?.onboarding_completed) {
     redirect("/");
   }
+
+  // Check if user is an OAuth user (Google or GitHub)
+  const isOAuthUser =
+    user.app_metadata?.provider === "google" ||
+    user.app_metadata?.provider === "github" ||
+    user.app_metadata?.providers?.includes("google") ||
+    user.app_metadata?.providers?.includes("github");
+
+  // Check if first_name or last_name is missing
+  const needsNames =
+    isOAuthUser && (!userData?.first_name || !userData?.last_name);
 
   async function completeOnboarding(formData: FormData) {
     "use server";
@@ -52,15 +70,56 @@ export default async function OnboardingPage() {
 
     const role = formData.get("role") as string;
     const phone = formData.get("phone") as string;
-    await supabase
+    const firstName = formData.get("first_name") as string;
+    const lastName = formData.get("last_name") as string;
+
+    // Check if user is OAuth and needs names
+    const isOAuthUser =
+      user.app_metadata?.provider === "google" ||
+      user.app_metadata?.provider === "github" ||
+      user.app_metadata?.providers?.includes("google") ||
+      user.app_metadata?.providers?.includes("github");
+
+    const { data: currentUserData } = await supabase
       .from("users")
-      .update({
-        role,
-        phone: phone || null,
-        onboarding_completed: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
+      .select("first_name, last_name")
+      .eq("id", user.id)
+      .single();
+
+    const needsNames =
+      isOAuthUser &&
+      (!currentUserData?.first_name || !currentUserData?.last_name);
+
+    // Validate required fields for OAuth users
+    if (needsNames) {
+      if (!firstName || !lastName) {
+        // Return error - in a real app, you'd want to show this to the user
+        // For now, we'll redirect back with an error
+        redirect("/onboarding?error=First name and last name are required");
+      }
+    }
+
+    const updateData: {
+      role: string;
+      phone: string | null;
+      onboarding_completed: boolean;
+      updated_at: string;
+      first_name?: string;
+      last_name?: string;
+    } = {
+      role,
+      phone: phone || null,
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Update first_name and last_name if provided (for OAuth users)
+    if (needsNames && firstName && lastName) {
+      updateData.first_name = firstName;
+      updateData.last_name = lastName;
+    }
+
+    await supabase.from("users").update(updateData).eq("id", user.id);
 
     redirect("/");
   }
@@ -75,8 +134,48 @@ export default async function OnboardingPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              {error}
+            </Alert>
+          )}
+          {needsNames && (
+            <Alert className="mb-4">
+              Please provide your first and last name to complete your profile.
+            </Alert>
+          )}
           <form action={completeOnboarding} className="space-y-6">
             <div className="space-y-4">
+              {needsNames && (
+                <>
+                  <div className="grid gap-3">
+                    <Label htmlFor="first_name">
+                      First Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="first_name"
+                      name="first_name"
+                      type="text"
+                      placeholder="Enter your first name"
+                      required
+                      defaultValue={userData?.first_name || ""}
+                    />
+                  </div>
+                  <div className="grid gap-3">
+                    <Label htmlFor="last_name">
+                      Last Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="last_name"
+                      name="last_name"
+                      type="text"
+                      placeholder="Enter your last name"
+                      required
+                      defaultValue={userData?.last_name || ""}
+                    />
+                  </div>
+                </>
+              )}
               <div className="grid gap-3">
                 <Label htmlFor="role">I am a...</Label>
                 <Select name="role" required>
