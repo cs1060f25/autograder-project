@@ -330,10 +330,7 @@ export function AssignmentDetailContent({
                       Mean
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
-                      {scoreDistribution.mean}
-                      <span className="text-sm text-purple-600 ml-1">
-                        / {assignment.max_points}
-                      </span>
+                      {scoreDistribution.mean}%
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
@@ -341,10 +338,7 @@ export function AssignmentDetailContent({
                       Median
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
-                      {scoreDistribution.median}
-                      <span className="text-sm text-purple-600 ml-1">
-                        / {assignment.max_points}
-                      </span>
+                      {scoreDistribution.median}%
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
@@ -352,7 +346,7 @@ export function AssignmentDetailContent({
                       Std Dev
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
-                      {scoreDistribution.stdDev}
+                      {scoreDistribution.stdDev}%
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
@@ -360,7 +354,7 @@ export function AssignmentDetailContent({
                       Min
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
-                      {scoreDistribution.min}
+                      {scoreDistribution.min}%
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
@@ -368,7 +362,7 @@ export function AssignmentDetailContent({
                       Max
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
-                      {scoreDistribution.max}
+                      {scoreDistribution.max}%
                     </p>
                   </div>
                 </div>
@@ -382,21 +376,21 @@ export function AssignmentDetailContent({
                     <div className="text-center flex-1">
                       <p className="text-xs text-purple-600 mb-1">Q1 (25th)</p>
                       <p className="text-xl font-bold text-purple-900">
-                        {scoreDistribution.quartiles.q1}
+                        {scoreDistribution.quartiles.q1}%
                       </p>
                     </div>
                     <div className="h-12 w-px bg-purple-300"></div>
                     <div className="text-center flex-1">
                       <p className="text-xs text-purple-600 mb-1">Q2 (50th)</p>
                       <p className="text-xl font-bold text-purple-900">
-                        {scoreDistribution.quartiles.q2}
+                        {scoreDistribution.quartiles.q2}%
                       </p>
                     </div>
                     <div className="h-12 w-px bg-purple-300"></div>
                     <div className="text-center flex-1">
                       <p className="text-xs text-purple-600 mb-1">Q3 (75th)</p>
                       <p className="text-xl font-bold text-purple-900">
-                        {scoreDistribution.quartiles.q3}
+                        {scoreDistribution.quartiles.q3}%
                       </p>
                     </div>
                   </div>

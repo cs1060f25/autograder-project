@@ -884,6 +884,19 @@ export async function getScoreDistribution(
 ): Promise<ScoreDistribution | null> {
   const supabase = await createClient();
 
+  // Get assignment max_points
+  const { data: assignment, error: assignmentError } = await supabase
+    .from("assignments")
+    .select("max_points")
+    .eq("id", assignmentId)
+    .single();
+
+  if (assignmentError || !assignment || assignment.max_points === 0) {
+    return null;
+  }
+
+  const maxPoints = assignment.max_points;
+
   // Get all graded submissions for this assignment
   const { data: submissions, error } = await supabase
     .from("submissions")
@@ -896,27 +909,31 @@ export async function getScoreDistribution(
     return null;
   }
 
-  const grades = submissions
-    .map((s) => s.grade as number)
+  // Convert all grades to percentages and sort
+  const percentageGrades = submissions
+    .map((s) => ((s.grade as number) / maxPoints) * 100)
     .sort((a, b) => a - b);
-  const n = grades.length;
+  const n = percentageGrades.length;
 
   // Calculate mean
-  const mean = grades.reduce((sum, grade) => sum + grade, 0) / n;
+  const mean = percentageGrades.reduce((sum, grade) => sum + grade, 0) / n;
 
   // Calculate median
   const median =
     n % 2 === 0
-      ? (grades[n / 2 - 1] + grades[n / 2]) / 2
-      : grades[Math.floor(n / 2)];
+      ? (percentageGrades[n / 2 - 1] + percentageGrades[n / 2]) / 2
+      : percentageGrades[Math.floor(n / 2)];
 
   // Calculate min and max
-  const min = grades[0];
-  const max = grades[n - 1];
+  const min = percentageGrades[0];
+  const max = percentageGrades[n - 1];
 
   // Calculate standard deviation
   const variance =
-    grades.reduce((sum, grade) => sum + Math.pow(grade - mean, 2), 0) / n;
+    percentageGrades.reduce(
+      (sum, grade) => sum + Math.pow(grade - mean, 2),
+      0
+    ) / n;
   const stdDev = Math.sqrt(variance);
 
   // Calculate quartiles
@@ -924,18 +941,18 @@ export async function getScoreDistribution(
   const q2Index = Math.floor(n * 0.5);
   const q3Index = Math.floor(n * 0.75);
 
-  const q1 = grades[q1Index];
+  const q1 = percentageGrades[q1Index];
   const q2 = median;
-  const q3 = grades[q3Index];
+  const q3 = percentageGrades[q3Index];
 
-  // Create histogram (10-point ranges: 0-9, 10-19, ..., 90-100)
+  // Create histogram based on percentage ranges (0-9%, 10-19%, ..., 90-100%)
   const histogram: { range: string; count: number }[] = [];
   for (let i = 0; i < 10; i++) {
     const start = i * 10;
     const end = i === 9 ? 100 : (i + 1) * 10 - 1;
-    const count = grades.filter((g) => g >= start && g <= end).length;
+    const count = percentageGrades.filter((g) => g >= start && g <= end).length;
     histogram.push({
-      range: `${start}-${end}`,
+      range: `${start}-${end}%`,
       count,
     });
   }

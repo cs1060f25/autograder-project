@@ -408,21 +408,19 @@ export function SubmissionModal({
                   <div className="bg-white p-3 rounded border border-purple-100">
                     <p className="text-xs text-purple-600 mb-1">Mean</p>
                     <p className="text-lg font-semibold text-purple-900">
-                      {scoreDistribution.mean}
-                      {maxPoints && ` / ${maxPoints}`}
+                      {scoreDistribution.mean}%
                     </p>
                   </div>
                   <div className="bg-white p-3 rounded border border-purple-100">
                     <p className="text-xs text-purple-600 mb-1">Median</p>
                     <p className="text-lg font-semibold text-purple-900">
-                      {scoreDistribution.median}
-                      {maxPoints && ` / ${maxPoints}`}
+                      {scoreDistribution.median}%
                     </p>
                   </div>
                   <div className="bg-white p-3 rounded border border-purple-100">
                     <p className="text-xs text-purple-600 mb-1">Std Dev</p>
                     <p className="text-lg font-semibold text-purple-900">
-                      {scoreDistribution.stdDev}
+                      {scoreDistribution.stdDev}%
                     </p>
                   </div>
                   <div className="bg-white p-3 rounded border border-purple-100">
@@ -438,15 +436,15 @@ export function SubmissionModal({
                   <p className="text-xs text-purple-600 mb-2">Quartiles</p>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-purple-700">
-                      Q1: {scoreDistribution.quartiles.q1}
+                      Q1: {scoreDistribution.quartiles.q1}%
                     </span>
                     <span className="text-purple-400">|</span>
                     <span className="text-purple-700">
-                      Q2: {scoreDistribution.quartiles.q2}
+                      Q2: {scoreDistribution.quartiles.q2}%
                     </span>
                     <span className="text-purple-400">|</span>
                     <span className="text-purple-700">
-                      Q3: {scoreDistribution.quartiles.q3}
+                      Q3: {scoreDistribution.quartiles.q3}%
                     </span>
                   </div>
                 </div>
