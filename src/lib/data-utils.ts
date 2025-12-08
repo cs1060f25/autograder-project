@@ -42,6 +42,7 @@ export interface Submission {
   ai_grade_data: any | null;
   ai_graded_at: string | null;
   ai_grade_status: string | null;
+  is_late: boolean | null;
   created_at: string;
   updated_at: string;
   assignment?: Assignment;
@@ -859,7 +860,9 @@ export async function getScoreDistribution(
     return null;
   }
 
-  const grades = submissions.map((s) => s.grade as number).sort((a, b) => a - b);
+  const grades = submissions
+    .map((s) => s.grade as number)
+    .sort((a, b) => a - b);
   const n = grades.length;
 
   // Calculate mean

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { GradingModal } from "@/components/modals/grading-modal";
+import { LaTeXText } from "@/components/ui/latex-text";
 import {
   FileText,
   Download,
@@ -227,9 +228,9 @@ export function SubmissionDetailModal({
                   Comments
                 </h3>
                 <div className="p-4 bg-gray-50 rounded-lg border">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {submission.content}
-                  </p>
+                  <div className="text-sm text-gray-700">
+                    <LaTeXText content={submission.content} />
+                  </div>
                 </div>
               </div>
             )}
@@ -244,7 +245,9 @@ export function SubmissionDetailModal({
                 <div className="space-y-3">
                   <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-green-700">Final Grade:</span>
+                      <span className="text-sm text-green-700">
+                        Final Grade:
+                      </span>
                       <span className="text-lg font-bold text-green-800">
                         {formatGrade(submission.grade, assignment.max_points)}
                       </span>
@@ -261,9 +264,9 @@ export function SubmissionDetailModal({
                       <h4 className="font-medium text-yellow-800 mb-2">
                         Feedback
                       </h4>
-                      <p className="text-sm text-yellow-700 whitespace-pre-wrap">
-                        {submission.feedback}
-                      </p>
+                      <div className="text-sm text-yellow-700">
+                        <LaTeXText content={submission.feedback} />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -278,7 +281,9 @@ export function SubmissionDetailModal({
               {submission.status !== "draft" && (
                 <Button onClick={() => setIsGradingModalOpen(true)}>
                   <Star className="h-4 w-4 mr-2" />
-                  {submission.status === "graded" ? "Update Grade" : "Grade Submission"}
+                  {submission.status === "graded"
+                    ? "Update Grade"
+                    : "Grade Submission"}
                 </Button>
               )}
             </div>

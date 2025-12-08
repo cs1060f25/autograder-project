@@ -1,6 +1,6 @@
 "use client";
 
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,7 @@ import {
   RefreshCw,
   Bot,
 } from "lucide-react";
+import { LaTeXText } from "@/components/ui/latex-text";
 
 interface GradingModalProps {
   isOpen: boolean;
@@ -652,9 +653,9 @@ export function GradingModal({
             {submission.assignment.instructions && (
               <div className="p-4 bg-blue-50 rounded-lg">
                 <h3 className="font-medium mb-2">Assignment Instructions</h3>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {submission.assignment.instructions}
-                </p>
+                <div className="text-sm text-gray-700">
+                  <LaTeXText content={submission.assignment.instructions} />
+                </div>
               </div>
             )}
 
@@ -712,9 +713,9 @@ export function GradingModal({
               <div className="space-y-2">
                 <h3 className="font-medium">Student Comments</h3>
                 <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm whitespace-pre-wrap">
-                    {submission.content}
-                  </p>
+                  <div className="text-sm">
+                    <LaTeXText content={submission.content} />
+                  </div>
                 </div>
               </div>
             )}
@@ -980,7 +981,9 @@ export function GradingModal({
                               </div>
                             </div>
                             <p className="text-sm text-gray-600 mb-3">
-                              {criterion.description}
+                              <LaTeXText
+                                content={criterion.description || ""}
+                              />
                             </p>
 
                             {hasAIFeedback && (
@@ -1061,7 +1064,9 @@ export function GradingModal({
                                                     : "text-gray-600"
                                                 }`}
                                               >
-                                                {preset.description}
+                                                <LaTeXText
+                                                  content={preset.description}
+                                                />
                                               </div>
                                             )}
                                           </div>

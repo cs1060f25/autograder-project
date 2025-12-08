@@ -139,6 +139,7 @@ describe("Supabase Database Schema", () => {
         "ai_grade_data", // jsonb, nullable
         "ai_graded_at", // timestamp, nullable
         "ai_grade_status", // text, nullable
+        "is_late", // boolean, computed based on submitted_at and assignment due_date
         "created_at", // timestamp
         "updated_at", // timestamp
       ];
@@ -159,6 +160,7 @@ describe("Supabase Database Schema", () => {
           "ai_grade_data",
           "ai_graded_at",
           "ai_grade_status",
+          "is_late",
           "created_at",
           "updated_at",
         ])

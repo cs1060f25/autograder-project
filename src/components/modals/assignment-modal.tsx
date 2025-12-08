@@ -26,7 +26,17 @@ import {
 } from "@/lib/assignment-actions";
 import { getRubricByAssignment } from "@/lib/rubric-actions";
 import { Assignment, Course, RubricCriterion } from "@/lib/data-utils";
-import { Plus, Trash2, FileText, ChevronDown, ChevronUp, Info, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 interface AssignmentModalProps {
   isOpen: boolean;
@@ -50,6 +60,9 @@ export function AssignmentModal({
   const [showRubric, setShowRubric] = useState(false);
   const [rubricCriteria, setRubricCriteria] = useState<RubricCriterion[]>([]);
   const [maxPoints, setMaxPoints] = useState(assignment?.max_points || 100);
+  const [dueDate, setDueDate] = useState<Date | undefined>(
+    assignment?.due_date ? new Date(assignment.due_date) : undefined
+  );
   const router = useRouter();
 
   // Load existing rubric when editing
@@ -167,6 +180,11 @@ export function AssignmentModal({
     setError(null);
 
     try {
+      // Add the due date to the form data
+      if (dueDate) {
+        formData.set("due_date", dueDate.toISOString());
+      }
+
       // Validate rubric if enabled
       if (showRubric && rubricCriteria.length > 0) {
         const totalPoints = getTotalPoints();
@@ -322,16 +340,10 @@ export function AssignmentModal({
 
             <div className="grid gap-2">
               <Label htmlFor="due_date">Due Date</Label>
-              <Input
-                id="due_date"
-                name="due_date"
-                type="datetime-local"
-                defaultValue={
-                  assignment?.due_date
-                    ? new Date(assignment.due_date).toISOString().slice(0, 16)
-                    : ""
-                }
-                required
+              <DateTimePicker
+                date={dueDate}
+                onDateChange={setDueDate}
+                placeholder="Select due date and time"
               />
             </div>
 
@@ -376,22 +388,25 @@ export function AssignmentModal({
                     <FileText className="h-4 w-4 text-blue-600" />
                   </div>
                   <div className="text-left">
-                    <div className="font-medium text-slate-900">Grading Rubric</div>
+                    <div className="font-medium text-slate-900">
+                      Grading Rubric
+                    </div>
                     <div className="text-xs text-slate-500">
                       {rubricCriteria.length === 0
                         ? "Define criteria for consistent grading"
-                        : `${rubricCriteria.length} criteria • ${getTotalPoints()}/${maxPoints} pts`}
+                        : `${
+                            rubricCriteria.length
+                          } criteria • ${getTotalPoints()}/${maxPoints} pts`}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {rubricCriteria.length > 0 && (
-                    getTotalPoints() === maxPoints ? (
+                  {rubricCriteria.length > 0 &&
+                    (getTotalPoints() === maxPoints ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                     ) : (
                       <AlertCircle className="h-5 w-5 text-amber-500" />
-                    )
-                  )}
+                    ))}
                   {showRubric ? (
                     <ChevronUp className="h-5 w-5 text-slate-400" />
                   ) : (
@@ -409,9 +424,13 @@ export function AssignmentModal({
                       <div className="text-sm text-blue-700">
                         <p className="font-medium">How rubrics work:</p>
                         <ul className="mt-1 space-y-1 text-blue-600">
-                          <li>• Add criteria that submissions will be graded on</li>
+                          <li>
+                            • Add criteria that submissions will be graded on
+                          </li>
                           <li>• Assign points to each criterion</li>
-                          <li>• Total points must equal max points ({maxPoints})</li>
+                          <li>
+                            • Total points must equal max points ({maxPoints})
+                          </li>
                         </ul>
                       </div>
                     </div>
@@ -457,8 +476,12 @@ export function AssignmentModal({
                       {getTotalPoints() !== maxPoints && (
                         <p className="text-xs text-slate-500 mt-2">
                           {getTotalPoints() < maxPoints
-                            ? `Add ${maxPoints - getTotalPoints()} more points to criteria`
-                            : `Remove ${getTotalPoints() - maxPoints} points from criteria`}
+                            ? `Add ${
+                                maxPoints - getTotalPoints()
+                              } more points to criteria`
+                            : `Remove ${
+                                getTotalPoints() - maxPoints
+                              } points from criteria`}
                         </p>
                       )}
                     </div>
@@ -497,18 +520,26 @@ export function AssignmentModal({
                         <div className="p-3 space-y-3">
                           <div className="grid grid-cols-[1fr,80px] gap-3">
                             <div>
-                              <Label className="text-xs text-slate-500">Name</Label>
+                              <Label className="text-xs text-slate-500">
+                                Name
+                              </Label>
                               <Input
                                 value={criterion.name}
                                 onChange={(e) =>
-                                  updateCriterion(criterion.id, "name", e.target.value)
+                                  updateCriterion(
+                                    criterion.id,
+                                    "name",
+                                    e.target.value
+                                  )
                                 }
                                 placeholder="e.g., Code Quality"
                                 className="mt-1"
                               />
                             </div>
                             <div>
-                              <Label className="text-xs text-slate-500">Points</Label>
+                              <Label className="text-xs text-slate-500">
+                                Points
+                              </Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -526,11 +557,17 @@ export function AssignmentModal({
                             </div>
                           </div>
                           <div>
-                            <Label className="text-xs text-slate-500">Description</Label>
+                            <Label className="text-xs text-slate-500">
+                              Description
+                            </Label>
                             <textarea
                               value={criterion.description}
                               onChange={(e) =>
-                                updateCriterion(criterion.id, "description", e.target.value)
+                                updateCriterion(
+                                  criterion.id,
+                                  "description",
+                                  e.target.value
+                                )
                               }
                               placeholder="What does this criterion evaluate?"
                               className="mt-1 w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -540,7 +577,9 @@ export function AssignmentModal({
                           {/* Presets Section */}
                           <div className="pt-2 border-t">
                             <div className="flex items-center justify-between mb-2">
-                              <Label className="text-xs text-slate-500">Quick Score Presets (Optional)</Label>
+                              <Label className="text-xs text-slate-500">
+                                Quick Score Presets (Optional)
+                              </Label>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -553,52 +592,63 @@ export function AssignmentModal({
                                 Add Preset
                               </Button>
                             </div>
-                            {criterion.presets && criterion.presets.length > 0 && (
-                              <div className="space-y-2">
-                                {criterion.presets.map((preset, presetIndex) => (
-                                  <div key={presetIndex} className="flex items-center gap-2">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max={criterion.max_points}
-                                      value={preset.points}
-                                      onChange={(e) =>
-                                        updatePreset(
-                                          criterion.id,
-                                          presetIndex,
-                                          "points",
-                                          parseInt(e.target.value) || 0
-                                        )
-                                      }
-                                      className="w-16 h-8 text-sm"
-                                      placeholder="Pts"
-                                    />
-                                    <Input
-                                      value={preset.description}
-                                      onChange={(e) =>
-                                        updatePreset(
-                                          criterion.id,
-                                          presetIndex,
-                                          "description",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="flex-1 h-8 text-sm"
-                                      placeholder="e.g., Excellent work"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removePreset(criterion.id, presetIndex)}
-                                      className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {criterion.presets &&
+                              criterion.presets.length > 0 && (
+                                <div className="space-y-2">
+                                  {criterion.presets.map(
+                                    (preset, presetIndex) => (
+                                      <div
+                                        key={presetIndex}
+                                        className="flex items-center gap-2"
+                                      >
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max={criterion.max_points}
+                                          value={preset.points}
+                                          onChange={(e) =>
+                                            updatePreset(
+                                              criterion.id,
+                                              presetIndex,
+                                              "points",
+                                              parseInt(e.target.value) || 0
+                                            )
+                                          }
+                                          className="w-16 h-8 text-sm"
+                                          placeholder="Pts"
+                                        />
+                                        <Input
+                                          value={preset.description}
+                                          onChange={(e) =>
+                                            updatePreset(
+                                              criterion.id,
+                                              presetIndex,
+                                              "description",
+                                              e.target.value
+                                            )
+                                          }
+                                          className="flex-1 h-8 text-sm"
+                                          placeholder="e.g., Excellent work"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() =>
+                                            removePreset(
+                                              criterion.id,
+                                              presetIndex
+                                            )
+                                          }
+                                          className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              )}
                           </div>
                         </div>
                       </div>
@@ -613,7 +663,8 @@ export function AssignmentModal({
                     className="w-full border-dashed"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add {rubricCriteria.length === 0 ? "First" : "Another"} Criterion
+                    Add {rubricCriteria.length === 0 ? "First" : "Another"}{" "}
+                    Criterion
                   </Button>
                 </div>
               )}

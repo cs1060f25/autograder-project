@@ -17,9 +17,24 @@ import {
   uploadFileToStorage,
   deleteFileFromStorage,
 } from "@/lib/submission-actions";
-import { Rubric, RubricCriterion, RubricScores, ScoreDistribution, getScoreDistribution } from "@/lib/data-utils";
+import {
+  Rubric,
+  RubricCriterion,
+  RubricScores,
+  ScoreDistribution,
+  getScoreDistribution,
+} from "@/lib/data-utils";
 import { getRubricByAssignment, getRubricScores } from "@/lib/rubric-actions";
-import { Upload, X, FileText, Send, Star, CheckCircle, BarChart3 } from "lucide-react";
+import {
+  Upload,
+  X,
+  FileText,
+  Send,
+  Star,
+  CheckCircle,
+  BarChart3,
+} from "lucide-react";
+import { LaTeXText } from "@/components/ui/latex-text";
 
 interface SubmissionModalProps {
   isOpen: boolean;
@@ -66,7 +81,8 @@ export function SubmissionModal({
   const [rubricScores, setRubricScores] = useState<RubricScores | null>(null);
   const [loadingRubric, setLoadingRubric] = useState(false);
   const [rubric, setRubric] = useState<Rubric | null>(null);
-  const [scoreDistribution, setScoreDistribution] = useState<ScoreDistribution | null>(null);
+  const [scoreDistribution, setScoreDistribution] =
+    useState<ScoreDistribution | null>(null);
   const [loadingDistribution, setLoadingDistribution] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,10 +98,7 @@ export function SubmissionModal({
       loadRubricScores();
     }
     // Load score distribution if enabled and graded
-    if (
-      showScoreDistribution &&
-      existingSubmission?.status === "graded"
-    ) {
+    if (showScoreDistribution && existingSubmission?.status === "graded") {
       loadScoreDistribution();
     }
   }, [
@@ -249,9 +262,9 @@ export function SubmissionModal({
           {instructions && (
             <div className="p-4 bg-gray-50 rounded-lg">
               <h4 className="font-medium mb-2">Instructions:</h4>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {instructions}
-              </p>
+              <div className="text-sm text-gray-700">
+                <LaTeXText content={instructions} />
+              </div>
             </div>
           )}
 
@@ -312,9 +325,9 @@ export function SubmissionModal({
                       </span>
                     </div>
                     {c.description && (
-                      <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">
-                        {c.description}
-                      </p>
+                      <div className="text-sm text-gray-700 mt-1">
+                        <LaTeXText content={c.description} />
+                      </div>
                     )}
                   </div>
                 ))}
@@ -369,9 +382,9 @@ export function SubmissionModal({
                 <h4 className="font-medium text-yellow-800 mb-2">
                   Instructor Feedback
                 </h4>
-                <p className="text-sm text-yellow-700 whitespace-pre-wrap">
-                  {existingSubmission.feedback}
-                </p>
+                <div className="text-sm text-yellow-700">
+                  <LaTeXText content={existingSubmission.feedback} />
+                </div>
               </div>
             )}
 
@@ -386,7 +399,7 @@ export function SubmissionModal({
                     Class Score Distribution
                   </h4>
                 </div>
-                
+
                 {/* Summary Statistics */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <div className="bg-white p-3 rounded border border-purple-100">
@@ -437,12 +450,18 @@ export function SubmissionModal({
 
                 {/* Histogram */}
                 <div>
-                  <p className="text-xs text-purple-600 mb-2">Score Distribution</p>
+                  <p className="text-xs text-purple-600 mb-2">
+                    Score Distribution
+                  </p>
                   <div className="space-y-1">
                     {scoreDistribution.histogram.map((bin) => {
-                      const percentage = (bin.count / scoreDistribution.totalGraded) * 100;
+                      const percentage =
+                        (bin.count / scoreDistribution.totalGraded) * 100;
                       return (
-                        <div key={bin.range} className="flex items-center gap-2">
+                        <div
+                          key={bin.range}
+                          className="flex items-center gap-2"
+                        >
                           <span className="text-xs text-purple-700 w-16">
                             {bin.range}
                           </span>
@@ -465,8 +484,12 @@ export function SubmissionModal({
                 {existingSubmission.grade !== undefined && maxPoints && (
                   <div className="mt-4 pt-4 border-t border-purple-200">
                     <p className="text-sm text-purple-700">
-                      <strong>Your Score:</strong> {existingSubmission.grade} / {maxPoints}
-                      {" "}({((existingSubmission.grade / maxPoints) * 100).toFixed(1)}%)
+                      <strong>Your Score:</strong> {existingSubmission.grade} /{" "}
+                      {maxPoints} (
+                      {((existingSubmission.grade / maxPoints) * 100).toFixed(
+                        1
+                      )}
+                      %)
                     </p>
                   </div>
                 )}
@@ -475,7 +498,9 @@ export function SubmissionModal({
 
           {loadingDistribution && showScoreDistribution && (
             <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-sm text-purple-600">Loading score distribution...</p>
+              <p className="text-sm text-purple-600">
+                Loading score distribution...
+              </p>
             </div>
           )}
 

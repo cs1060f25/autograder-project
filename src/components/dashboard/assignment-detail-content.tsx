@@ -10,6 +10,7 @@ import { SubmissionDetailModal } from "@/components/modals/submission-detail-mod
 import { toggleScoreDistribution } from "@/lib/assignment-actions";
 import { ScoreDistribution, getScoreDistribution } from "@/lib/data-utils";
 import { useEffect } from "react";
+import { LaTeXText } from "@/components/ui/latex-text";
 import {
   FileText,
   Users,
@@ -76,13 +77,15 @@ export function AssignmentDetailContent({
   submissions,
   stats,
 }: AssignmentDetailContentProps) {
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [selectedSubmission, setSelectedSubmission] =
+    useState<Submission | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showDistribution, setShowDistribution] = useState(
     assignment.show_score_distribution || false
   );
   const [isTogglingDistribution, setIsTogglingDistribution] = useState(false);
-  const [scoreDistribution, setScoreDistribution] = useState<ScoreDistribution | null>(null);
+  const [scoreDistribution, setScoreDistribution] =
+    useState<ScoreDistribution | null>(null);
   const [loadingDistribution, setLoadingDistribution] = useState(false);
 
   // Load score distribution when there are graded submissions
@@ -182,7 +185,9 @@ export function AssignmentDetailContent({
                 <h4 className="font-medium text-sm text-gray-700 mb-1">
                   Description
                 </h4>
-                <p className="text-gray-600">{assignment.description}</p>
+                <div className="text-gray-600">
+                  <LaTeXText content={assignment.description || ""} />
+                </div>
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -217,19 +222,22 @@ export function AssignmentDetailContent({
                 <h4 className="font-medium text-sm text-gray-700 mb-1">
                   Instructions
                 </h4>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                  {assignment.instructions}
-                </p>
+                <div className="text-sm text-gray-600">
+                  <LaTeXText content={assignment.instructions} />
+                </div>
               </div>
             )}
-            
+
             {/* Score Distribution Toggle */}
             <div className="pt-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-gray-500" />
                   <div>
-                    <Label htmlFor="score-distribution" className="text-sm font-medium">
+                    <Label
+                      htmlFor="score-distribution"
+                      className="text-sm font-medium"
+                    >
                       Show Score Distribution to Students
                     </Label>
                     <p className="text-xs text-gray-500">
@@ -318,7 +326,9 @@ export function AssignmentDetailContent({
                 {/* Summary Statistics */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-                    <p className="text-xs text-purple-600 mb-1 font-medium">Mean</p>
+                    <p className="text-xs text-purple-600 mb-1 font-medium">
+                      Mean
+                    </p>
                     <p className="text-2xl font-bold text-purple-900">
                       {scoreDistribution.mean}
                       <span className="text-sm text-purple-600 ml-1">
@@ -327,7 +337,9 @@ export function AssignmentDetailContent({
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-                    <p className="text-xs text-purple-600 mb-1 font-medium">Median</p>
+                    <p className="text-xs text-purple-600 mb-1 font-medium">
+                      Median
+                    </p>
                     <p className="text-2xl font-bold text-purple-900">
                       {scoreDistribution.median}
                       <span className="text-sm text-purple-600 ml-1">
@@ -336,19 +348,25 @@ export function AssignmentDetailContent({
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-                    <p className="text-xs text-purple-600 mb-1 font-medium">Std Dev</p>
+                    <p className="text-xs text-purple-600 mb-1 font-medium">
+                      Std Dev
+                    </p>
                     <p className="text-2xl font-bold text-purple-900">
                       {scoreDistribution.stdDev}
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-                    <p className="text-xs text-purple-600 mb-1 font-medium">Min</p>
+                    <p className="text-xs text-purple-600 mb-1 font-medium">
+                      Min
+                    </p>
                     <p className="text-2xl font-bold text-purple-900">
                       {scoreDistribution.min}
                     </p>
                   </div>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-                    <p className="text-xs text-purple-600 mb-1 font-medium">Max</p>
+                    <p className="text-xs text-purple-600 mb-1 font-medium">
+                      Max
+                    </p>
                     <p className="text-2xl font-bold text-purple-900">
                       {scoreDistribution.max}
                     </p>
@@ -357,7 +375,9 @@ export function AssignmentDetailContent({
 
                 {/* Quartiles */}
                 <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-100">
-                  <p className="text-sm font-medium text-purple-800 mb-3">Quartiles</p>
+                  <p className="text-sm font-medium text-purple-800 mb-3">
+                    Quartiles
+                  </p>
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-center flex-1">
                       <p className="text-xs text-purple-600 mb-1">Q1 (25th)</p>
@@ -389,9 +409,13 @@ export function AssignmentDetailContent({
                   </p>
                   <div className="space-y-2">
                     {scoreDistribution.histogram.map((bin) => {
-                      const percentage = (bin.count / scoreDistribution.totalGraded) * 100;
+                      const percentage =
+                        (bin.count / scoreDistribution.totalGraded) * 100;
                       return (
-                        <div key={bin.range} className="flex items-center gap-3">
+                        <div
+                          key={bin.range}
+                          className="flex items-center gap-3"
+                        >
                           <span className="text-sm font-medium text-purple-700 w-20">
                             {bin.range}
                           </span>
