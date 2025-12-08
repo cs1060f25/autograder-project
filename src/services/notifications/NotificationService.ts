@@ -72,10 +72,10 @@ export class NotificationService {
     try {
       // Determine the user to notify based on event type
       const userId = this.getUserIdFromEvent(event);
-      
+
       // Fetch user contact information
       const userContact = await this.fetchUserContact(userId);
-      
+
       if (!userContact) {
         console.error(`User contact not found for user ID: ${userId}`);
         return;
@@ -114,7 +114,7 @@ export class NotificationService {
     try {
       const { data, error } = await this.supabaseClient
         .from("users")
-        .select("id, email, first_name, last_name, phone")
+        .select("id, email, first_name, last_name, phone_number")
         .eq("id", userId)
         .single();
 
@@ -128,7 +128,7 @@ export class NotificationService {
         email: data.email as string,
         firstName: data.first_name as string,
         lastName: data.last_name as string,
-        phone: data.phone as string | undefined,
+        phone: data.phone_number as string | undefined,
       };
     } catch (error) {
       console.error("Error fetching user contact:", error);
@@ -148,7 +148,8 @@ export class NotificationService {
     try {
       const { data, error } = await this.supabaseClient
         .from("assignments")
-        .select(`
+        .select(
+          `
           title,
           due_date,
           course_id,
@@ -156,7 +157,8 @@ export class NotificationService {
             name,
             code
           )
-        `)
+        `
+        )
         .eq("id", assignmentId)
         .single();
 
@@ -167,7 +169,7 @@ export class NotificationService {
 
       // Handle the case where course might be null
       const course = data.courses as any;
-      
+
       return {
         assignmentName: data.title,
         courseName: course?.name || "Unknown Course",
@@ -241,15 +243,25 @@ export class NotificationService {
     switch (event.type) {
       case NotificationEventType.SUBMISSION_GRADED:
         const gradingEvent = event as GradingEvent;
-        const gradingContext = await this.fetchAssignmentContext(gradingEvent.assignmentId);
-        
-        const assignmentName = gradingContext?.assignmentName || "Your assignment";
+        const gradingContext = await this.fetchAssignmentContext(
+          gradingEvent.assignmentId
+        );
+
+        const assignmentName =
+          gradingContext?.assignmentName || "Your assignment";
         const courseName = gradingContext?.courseName || "";
         const courseCode = gradingContext?.courseCode || "";
-        const courseDisplay = courseCode ? `${courseCode}: ${courseName}` : courseName;
-        const submissionUrl = getSubmissionUrl(gradingEvent.assignmentId, gradingEvent.submissionId);
-        
-        subject = `Grade Released: ${assignmentName}${courseCode ? ` (${courseCode})` : ""}`;
+        const courseDisplay = courseCode
+          ? `${courseCode}: ${courseName}`
+          : courseName;
+        const submissionUrl = getSubmissionUrl(
+          gradingEvent.assignmentId,
+          gradingEvent.submissionId
+        );
+
+        subject = `Grade Released: ${assignmentName}${
+          courseCode ? ` (${courseCode})` : ""
+        }`;
         body = `
           <!DOCTYPE html>
           <html>
@@ -265,18 +277,30 @@ export class NotificationService {
             </div>
             
             <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              ${courseDisplay ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${courseDisplay}</p>` : ""}
+              ${
+                courseDisplay
+                  ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${courseDisplay}</p>`
+                  : ""
+              }
               <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${assignmentName}</p>
               <p style="margin: 0 0 12px 0;"><strong>Status:</strong> <span style="color: #28a745; font-weight: 600;">Graded</span></p>
-              <p style="margin: 0;"><strong>Grade:</strong> <span style="font-size: 18px; font-weight: 600; color: #2c3e50;">${gradingEvent.grade !== undefined && gradingEvent.grade !== null ? gradingEvent.grade : "See submission"}</span></p>
+              <p style="margin: 0;"><strong>Grade:</strong> <span style="font-size: 18px; font-weight: 600; color: #2c3e50;">${
+                gradingEvent.grade !== undefined && gradingEvent.grade !== null
+                  ? gradingEvent.grade
+                  : "See submission"
+              }</span></p>
             </div>
             
-            ${gradingEvent.feedback ? `
+            ${
+              gradingEvent.feedback
+                ? `
             <div style="background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 16px; margin-bottom: 20px; border-radius: 4px;">
               <p style="margin: 0 0 8px 0; font-weight: 600; color: #2c3e50;">Feedback:</p>
               <p style="margin: 0; white-space: pre-wrap;">${gradingEvent.feedback}</p>
             </div>
-            ` : ""}
+            `
+                : ""
+            }
             
             <div style="text-align: center; margin: 24px 0;">
               <a href="${submissionUrl}" style="display: inline-block; background-color: #007bff; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">View Full Submission</a>
@@ -309,9 +333,13 @@ export class NotificationService {
 
       case NotificationEventType.DOCUMENT_UPLOADED:
         const docUploadEvent = event as DocumentEvent;
-        const uploadContext = docUploadEvent.userId ? await this.fetchAssignmentContext(docUploadEvent.documentId) : null;
-        const studentName = docUploadEvent.userId ? await this.fetchStudentName(docUploadEvent.userId) : "A student";
-        
+        const uploadContext = docUploadEvent.userId
+          ? await this.fetchAssignmentContext(docUploadEvent.documentId)
+          : null;
+        const studentName = docUploadEvent.userId
+          ? await this.fetchStudentName(docUploadEvent.userId)
+          : "A student";
+
         subject = "Submission Received: New Student Work to Review";
         body = `
           <!DOCTYPE html>
@@ -329,7 +357,9 @@ export class NotificationService {
             
             <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
               <p style="margin: 0 0 12px 0;"><strong>Student:</strong> ${studentName}</p>
-              <p style="margin: 0 0 12px 0;"><strong>Document:</strong> ${docUploadEvent.fileName}</p>
+              <p style="margin: 0 0 12px 0;"><strong>Document:</strong> ${
+                docUploadEvent.fileName
+              }</p>
               <p style="margin: 0;"><strong>Status:</strong> <span style="color: #ffc107; font-weight: 600;">Awaiting Review</span></p>
             </div>
             
@@ -359,19 +389,36 @@ export class NotificationService {
         subject = "Document processing failed";
         body = `
           <h2>Hello ${firstName} ${lastName},</h2>
-          <p>Unfortunately, your document <strong>${docFailEvent.fileName}</strong> failed to process.</p>
-          ${docFailEvent.error ? `<p><strong>Error:</strong> ${docFailEvent.error}</p>` : ""}
+          <p>Unfortunately, your document <strong>${
+            docFailEvent.fileName
+          }</strong> failed to process.</p>
+          ${
+            docFailEvent.error
+              ? `<p><strong>Error:</strong> ${docFailEvent.error}</p>`
+              : ""
+          }
         `;
         break;
 
       case NotificationEventType.ASSIGNMENT_PUBLISHED:
         const publishedEvent = event as any;
-        const publishedContext = publishedEvent.assignmentId ? await this.fetchAssignmentContext(publishedEvent.assignmentId) : null;
-        const publishedAssignmentName = publishedContext?.assignmentName || "A new assignment";
-        const publishedCourseDisplay = publishedContext?.courseCode ? `${publishedContext.courseCode}: ${publishedContext.courseName}` : publishedContext?.courseName || "";
-        const publishedUrl = publishedEvent.assignmentId ? getAssignmentUrl(publishedEvent.assignmentId) : getDashboardUrl();
-        
-        subject = `New Assignment: ${publishedAssignmentName}${publishedContext?.courseCode ? ` (${publishedContext.courseCode})` : ""}`;
+        const publishedContext = publishedEvent.assignmentId
+          ? await this.fetchAssignmentContext(publishedEvent.assignmentId)
+          : null;
+        const publishedAssignmentName =
+          publishedContext?.assignmentName || "A new assignment";
+        const publishedCourseDisplay = publishedContext?.courseCode
+          ? `${publishedContext.courseCode}: ${publishedContext.courseName}`
+          : publishedContext?.courseName || "";
+        const publishedUrl = publishedEvent.assignmentId
+          ? getAssignmentUrl(publishedEvent.assignmentId)
+          : getDashboardUrl();
+
+        subject = `New Assignment: ${publishedAssignmentName}${
+          publishedContext?.courseCode
+            ? ` (${publishedContext.courseCode})`
+            : ""
+        }`;
         body = `
           <!DOCTYPE html>
           <html>
@@ -387,9 +434,26 @@ export class NotificationService {
             </div>
             
             <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              ${publishedCourseDisplay ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${publishedCourseDisplay}</p>` : ""}
+              ${
+                publishedCourseDisplay
+                  ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${publishedCourseDisplay}</p>`
+                  : ""
+              }
               <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${publishedAssignmentName}</p>
-              ${publishedContext?.dueDate ? `<p style="margin: 0;"><strong>Due Date:</strong> ${new Date(publishedContext.dueDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>` : ""}
+              ${
+                publishedContext?.dueDate
+                  ? `<p style="margin: 0;"><strong>Due Date:</strong> ${new Date(
+                      publishedContext.dueDate
+                    ).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}</p>`
+                  : ""
+              }
             </div>
             
             <div style="text-align: center; margin: 24px 0;">
@@ -406,11 +470,18 @@ export class NotificationService {
 
       case NotificationEventType.ASSIGNMENT_DUE_SOON:
         const dueSoonEvent = event as any;
-        const dueSoonContext = dueSoonEvent.assignmentId ? await this.fetchAssignmentContext(dueSoonEvent.assignmentId) : null;
-        const dueSoonAssignmentName = dueSoonContext?.assignmentName || "An assignment";
-        const dueSoonCourseDisplay = dueSoonContext?.courseCode ? `${dueSoonContext.courseCode}: ${dueSoonContext.courseName}` : dueSoonContext?.courseName || "";
-        const dueSoonUrl = dueSoonEvent.assignmentId ? getAssignmentUrl(dueSoonEvent.assignmentId) : getDashboardUrl();
-        
+        const dueSoonContext = dueSoonEvent.assignmentId
+          ? await this.fetchAssignmentContext(dueSoonEvent.assignmentId)
+          : null;
+        const dueSoonAssignmentName =
+          dueSoonContext?.assignmentName || "An assignment";
+        const dueSoonCourseDisplay = dueSoonContext?.courseCode
+          ? `${dueSoonContext.courseCode}: ${dueSoonContext.courseName}`
+          : dueSoonContext?.courseName || "";
+        const dueSoonUrl = dueSoonEvent.assignmentId
+          ? getAssignmentUrl(dueSoonEvent.assignmentId)
+          : getDashboardUrl();
+
         subject = `⏰ Reminder: ${dueSoonAssignmentName} Due Soon`;
         body = `
           <!DOCTYPE html>
@@ -427,9 +498,26 @@ export class NotificationService {
             </div>
             
             <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              ${dueSoonCourseDisplay ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${dueSoonCourseDisplay}</p>` : ""}
+              ${
+                dueSoonCourseDisplay
+                  ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${dueSoonCourseDisplay}</p>`
+                  : ""
+              }
               <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${dueSoonAssignmentName}</p>
-              ${dueSoonContext?.dueDate ? `<p style="margin: 0;"><strong>Due Date:</strong> <span style="color: #ffc107; font-weight: 600;">${new Date(dueSoonContext.dueDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></p>` : ""}
+              ${
+                dueSoonContext?.dueDate
+                  ? `<p style="margin: 0;"><strong>Due Date:</strong> <span style="color: #ffc107; font-weight: 600;">${new Date(
+                      dueSoonContext.dueDate
+                    ).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}</span></p>`
+                  : ""
+              }
             </div>
             
             <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; margin-bottom: 20px; border-radius: 4px;">
@@ -450,11 +538,18 @@ export class NotificationService {
 
       case NotificationEventType.ASSIGNMENT_OVERDUE:
         const overdueEvent = event as any;
-        const overdueContext = overdueEvent.assignmentId ? await this.fetchAssignmentContext(overdueEvent.assignmentId) : null;
-        const overdueAssignmentName = overdueContext?.assignmentName || "An assignment";
-        const overdueCourseDisplay = overdueContext?.courseCode ? `${overdueContext.courseCode}: ${overdueContext.courseName}` : overdueContext?.courseName || "";
-        const overdueUrl = overdueEvent.assignmentId ? getAssignmentUrl(overdueEvent.assignmentId) : getDashboardUrl();
-        
+        const overdueContext = overdueEvent.assignmentId
+          ? await this.fetchAssignmentContext(overdueEvent.assignmentId)
+          : null;
+        const overdueAssignmentName =
+          overdueContext?.assignmentName || "An assignment";
+        const overdueCourseDisplay = overdueContext?.courseCode
+          ? `${overdueContext.courseCode}: ${overdueContext.courseName}`
+          : overdueContext?.courseName || "";
+        const overdueUrl = overdueEvent.assignmentId
+          ? getAssignmentUrl(overdueEvent.assignmentId)
+          : getDashboardUrl();
+
         subject = `⚠️ Overdue: ${overdueAssignmentName}`;
         body = `
           <!DOCTYPE html>
@@ -471,9 +566,26 @@ export class NotificationService {
             </div>
             
             <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              ${overdueCourseDisplay ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${overdueCourseDisplay}</p>` : ""}
+              ${
+                overdueCourseDisplay
+                  ? `<p style="margin: 0 0 12px 0; color: #6c757d;"><strong>Course:</strong> ${overdueCourseDisplay}</p>`
+                  : ""
+              }
               <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${overdueAssignmentName}</p>
-              ${overdueContext?.dueDate ? `<p style="margin: 0;"><strong>Was Due:</strong> <span style="color: #dc3545; font-weight: 600;">${new Date(overdueContext.dueDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></p>` : ""}
+              ${
+                overdueContext?.dueDate
+                  ? `<p style="margin: 0;"><strong>Was Due:</strong> <span style="color: #dc3545; font-weight: 600;">${new Date(
+                      overdueContext.dueDate
+                    ).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}</span></p>`
+                  : ""
+              }
             </div>
             
             <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 16px; margin-bottom: 20px; border-radius: 4px;">
@@ -494,7 +606,7 @@ export class NotificationService {
 
       case NotificationEventType.REGRADE_REQUEST_SUBMITTED:
         const regradeEvent = event as any;
-        
+
         subject = `Regrade Request: ${regradeEvent.studentName} - ${regradeEvent.assignmentTitle}`;
         body = `
           <!DOCTYPE html>
@@ -507,13 +619,21 @@ export class NotificationService {
             <div style="background-color: #fff3cd; border-radius: 8px; padding: 24px; margin-bottom: 20px;">
               <h2 style="color: #856404; margin-top: 0;">📝 New Regrade Request</h2>
               <p style="font-size: 16px; margin-bottom: 8px;">Hello ${firstName},</p>
-              <p style="font-size: 16px;"><strong>${regradeEvent.studentName}</strong> has submitted a regrade request.</p>
+              <p style="font-size: 16px;"><strong>${
+                regradeEvent.studentName
+              }</strong> has submitted a regrade request.</p>
             </div>
             
             <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              <p style="margin: 0 0 12px 0;"><strong>Student:</strong> ${regradeEvent.studentName}</p>
-              <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${regradeEvent.assignmentTitle}</p>
-              <p style="margin: 0 0 12px 0;"><strong>Rubric Item:</strong> ${regradeEvent.rubricItemId}</p>
+              <p style="margin: 0 0 12px 0;"><strong>Student:</strong> ${
+                regradeEvent.studentName
+              }</p>
+              <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${
+                regradeEvent.assignmentTitle
+              }</p>
+              <p style="margin: 0 0 12px 0;"><strong>Rubric Item:</strong> ${
+                regradeEvent.rubricItemId
+              }</p>
               <p style="margin: 0;"><strong>Status:</strong> <span style="color: #ffc107; font-weight: 600;">Pending Review</span></p>
             </div>
             
@@ -531,12 +651,12 @@ export class NotificationService {
 
       case NotificationEventType.REGRADE_REQUEST_RESOLVED:
         const resolutionEvent = event as any;
-        const isApproved = resolutionEvent.status === 'approved';
-        const statusColor = isApproved ? '#28a745' : '#dc3545';
-        const statusBgColor = isApproved ? '#d4edda' : '#f8d7da';
-        const statusText = isApproved ? 'Approved' : 'Denied';
-        const statusIcon = isApproved ? '✅' : '❌';
-        
+        const isApproved = resolutionEvent.status === "approved";
+        const statusColor = isApproved ? "#28a745" : "#dc3545";
+        const statusBgColor = isApproved ? "#d4edda" : "#f8d7da";
+        const statusText = isApproved ? "Approved" : "Denied";
+        const statusIcon = isApproved ? "✅" : "❌";
+
         subject = `Regrade Request ${statusText}: ${resolutionEvent.assignmentTitle}`;
         body = `
           <!DOCTYPE html>
@@ -549,29 +669,53 @@ export class NotificationService {
             <div style="background-color: ${statusBgColor}; border-radius: 8px; padding: 24px; margin-bottom: 20px;">
               <h2 style="color: ${statusColor}; margin-top: 0;">${statusIcon} Regrade Request ${statusText}</h2>
               <p style="font-size: 16px; margin-bottom: 8px;">Hello ${firstName},</p>
-              <p style="font-size: 16px;">Your regrade request for <strong>${resolutionEvent.assignmentTitle}</strong> has been reviewed and ${statusText.toLowerCase()}.</p>
+              <p style="font-size: 16px;">Your regrade request for <strong>${
+                resolutionEvent.assignmentTitle
+              }</strong> has been reviewed and ${statusText.toLowerCase()}.</p>
             </div>
             
             <div style="background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${resolutionEvent.assignmentTitle}</p>
-              <p style="margin: 0 0 12px 0;"><strong>Rubric Item:</strong> ${resolutionEvent.rubricItemName}</p>
+              <p style="margin: 0 0 12px 0;"><strong>Assignment:</strong> ${
+                resolutionEvent.assignmentTitle
+              }</p>
+              <p style="margin: 0 0 12px 0;"><strong>Rubric Item:</strong> ${
+                resolutionEvent.rubricItemName
+              }</p>
               <p style="margin: 0 0 12px 0;"><strong>Decision:</strong> <span style="color: ${statusColor}; font-weight: 600;">${statusText}</span></p>
-              ${isApproved && resolutionEvent.pointsAwarded !== undefined ? `<p style="margin: 0;"><strong>Points Awarded:</strong> <span style="font-size: 18px; font-weight: 600; color: ${statusColor};">${resolutionEvent.pointsAwarded}${resolutionEvent.maxPoints ? ` / ${resolutionEvent.maxPoints}` : ''}</span></p>` : ''}
+              ${
+                isApproved && resolutionEvent.pointsAwarded !== undefined
+                  ? `<p style="margin: 0;"><strong>Points Awarded:</strong> <span style="font-size: 18px; font-weight: 600; color: ${statusColor};">${
+                      resolutionEvent.pointsAwarded
+                    }${
+                      resolutionEvent.maxPoints
+                        ? ` / ${resolutionEvent.maxPoints}`
+                        : ""
+                    }</span></p>`
+                  : ""
+              }
             </div>
             
-            ${resolutionEvent.resolutionNotes ? `
+            ${
+              resolutionEvent.resolutionNotes
+                ? `
             <div style="background-color: #f8f9fa; border-left: 4px solid ${statusColor}; padding: 16px; margin-bottom: 20px; border-radius: 4px;">
               <p style="margin: 0 0 8px 0; font-weight: 600; color: #2c3e50;">TA/Instructor Comment:</p>
               <p style="margin: 0; white-space: pre-wrap;">${resolutionEvent.resolutionNotes}</p>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
             
-            ${resolutionEvent.auditMetadata?.ai_rationale ? `
+            ${
+              resolutionEvent.auditMetadata?.ai_rationale
+                ? `
             <div style="background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 16px; margin-bottom: 20px; border-radius: 4px;">
               <p style="margin: 0 0 8px 0; font-weight: 600; color: #2c3e50;">Original AI Grading Context:</p>
               <p style="margin: 0; font-size: 14px; color: #495057;">${resolutionEvent.auditMetadata.ai_rationale}</p>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
             
             <div style="text-align: center; margin: 24px 0;">
               <a href="${getDashboardUrl()}" style="display: inline-block; background-color: #007bff; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">View Updated Grade</a>
@@ -579,7 +723,11 @@ export class NotificationService {
             
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e1e4e8; color: #6c757d; font-size: 14px;">
               <p style="margin: 0;">This is an automated notification from your course autograder system.</p>
-              ${!isApproved ? `<p style="margin: 8px 0 0 0;">If you have further questions about this decision, please contact your instructor.</p>` : ''}
+              ${
+                !isApproved
+                  ? `<p style="margin: 8px 0 0 0;">If you have further questions about this decision, please contact your instructor.</p>`
+                  : ""
+              }
             </div>
           </body>
           </html>
@@ -613,12 +761,24 @@ export class NotificationService {
     switch (event.type) {
       case NotificationEventType.SUBMISSION_GRADED:
         const gradingEvent = event as GradingEvent;
-        const gradingContext = await this.fetchAssignmentContext(gradingEvent.assignmentId);
-        const assignmentName = gradingContext?.assignmentName || "your assignment";
+        const gradingContext = await this.fetchAssignmentContext(
+          gradingEvent.assignmentId
+        );
+        const assignmentName =
+          gradingContext?.assignmentName || "your assignment";
         const courseCode = gradingContext?.courseCode || "";
-        const submissionUrl = getSubmissionUrl(gradingEvent.assignmentId, gradingEvent.submissionId);
-        
-        body = `Hi ${firstName}, ${courseCode ? `[${courseCode}] ` : ""}${assignmentName} graded! Score: ${gradingEvent.grade !== undefined && gradingEvent.grade !== null ? gradingEvent.grade : "See details"}. View: ${submissionUrl}`;
+        const submissionUrl = getSubmissionUrl(
+          gradingEvent.assignmentId,
+          gradingEvent.submissionId
+        );
+
+        body = `Hi ${firstName}, ${
+          courseCode ? `[${courseCode}] ` : ""
+        }${assignmentName} graded! Score: ${
+          gradingEvent.grade !== undefined && gradingEvent.grade !== null
+            ? gradingEvent.grade
+            : "See details"
+        }. View: ${submissionUrl}`;
         break;
 
       case NotificationEventType.GRADE_UPDATED:
@@ -631,30 +791,46 @@ export class NotificationService {
 
       case NotificationEventType.ASSIGNMENT_DUE_SOON:
         const dueSoonEvent = event as any;
-        const dueSoonContext = dueSoonEvent.assignmentId ? await this.fetchAssignmentContext(dueSoonEvent.assignmentId) : null;
+        const dueSoonContext = dueSoonEvent.assignmentId
+          ? await this.fetchAssignmentContext(dueSoonEvent.assignmentId)
+          : null;
         const dueSoonName = dueSoonContext?.assignmentName || "An assignment";
         const dueSoonCode = dueSoonContext?.courseCode || "";
-        const dueSoonUrl = dueSoonEvent.assignmentId ? getAssignmentUrl(dueSoonEvent.assignmentId) : getDashboardUrl();
-        
-        body = `⏰ Hi ${firstName}, reminder: ${dueSoonCode ? `[${dueSoonCode}] ` : ""}${dueSoonName} due soon! Submit: ${dueSoonUrl}`;
+        const dueSoonUrl = dueSoonEvent.assignmentId
+          ? getAssignmentUrl(dueSoonEvent.assignmentId)
+          : getDashboardUrl();
+
+        body = `⏰ Hi ${firstName}, reminder: ${
+          dueSoonCode ? `[${dueSoonCode}] ` : ""
+        }${dueSoonName} due soon! Submit: ${dueSoonUrl}`;
         break;
 
       case NotificationEventType.ASSIGNMENT_OVERDUE:
         const overdueEvent = event as any;
-        const overdueContext = overdueEvent.assignmentId ? await this.fetchAssignmentContext(overdueEvent.assignmentId) : null;
+        const overdueContext = overdueEvent.assignmentId
+          ? await this.fetchAssignmentContext(overdueEvent.assignmentId)
+          : null;
         const overdueName = overdueContext?.assignmentName || "An assignment";
         const overdueCode = overdueContext?.courseCode || "";
-        const overdueUrl = overdueEvent.assignmentId ? getAssignmentUrl(overdueEvent.assignmentId) : getDashboardUrl();
-        
-        body = `⚠️ Hi ${firstName}, ${overdueCode ? `[${overdueCode}] ` : ""}${overdueName} is OVERDUE. Submit ASAP: ${overdueUrl}`;
+        const overdueUrl = overdueEvent.assignmentId
+          ? getAssignmentUrl(overdueEvent.assignmentId)
+          : getDashboardUrl();
+
+        body = `⚠️ Hi ${firstName}, ${
+          overdueCode ? `[${overdueCode}] ` : ""
+        }${overdueName} is OVERDUE. Submit ASAP: ${overdueUrl}`;
         break;
 
       case NotificationEventType.REGRADE_REQUEST_RESOLVED:
         const smsResolutionEvent = event as any;
-        const smsStatusText = smsResolutionEvent.status === 'approved' ? 'APPROVED' : 'DENIED';
-        const smsStatusIcon = smsResolutionEvent.status === 'approved' ? '✅' : '❌';
-        
-        body = `${smsStatusIcon} Hi ${firstName}, your regrade request for ${smsResolutionEvent.assignmentTitle} was ${smsStatusText}. Check details: ${getDashboardUrl()}`;
+        const smsStatusText =
+          smsResolutionEvent.status === "approved" ? "APPROVED" : "DENIED";
+        const smsStatusIcon =
+          smsResolutionEvent.status === "approved" ? "✅" : "❌";
+
+        body = `${smsStatusIcon} Hi ${firstName}, your regrade request for ${
+          smsResolutionEvent.assignmentTitle
+        } was ${smsStatusText}. Check details: ${getDashboardUrl()}`;
         break;
 
       default:
@@ -725,7 +901,9 @@ export class NotificationService {
   /**
    * Log notification to Supabase notifications table
    */
-  private async logNotification(log: Omit<any, "id" | "created_at">): Promise<void> {
+  private async logNotification(
+    log: Omit<any, "id" | "created_at">
+  ): Promise<void> {
     try {
       const { error } = await this.supabaseClient
         .from("notifications")

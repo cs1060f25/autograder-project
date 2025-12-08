@@ -20,6 +20,7 @@ import {
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
+import { OnboardingForm } from "@/components/onboarding-form";
 
 export default async function OnboardingPage({
   searchParams,
@@ -69,7 +70,8 @@ export default async function OnboardingPage({
     if (!user) return;
 
     const role = formData.get("role") as string;
-    const phone = formData.get("phone") as string;
+    const phoneNumber = formData.get("phoneNumber") as string;
+    const phoneCountryCode = formData.get("phoneCountryCode") as string;
     const firstName = formData.get("first_name") as string;
     const lastName = formData.get("last_name") as string;
 
@@ -93,22 +95,24 @@ export default async function OnboardingPage({
     // Validate required fields for OAuth users
     if (needsNames) {
       if (!firstName || !lastName) {
-        // Return error - in a real app, you'd want to show this to the user
-        // For now, we'll redirect back with an error
         redirect("/onboarding?error=First name and last name are required");
       }
     }
 
     const updateData: {
       role: string;
-      phone: string | null;
+      phone_number: string | null;
+      phone_country_code: string;
+      phone_consent: boolean;
       onboarding_completed: boolean;
       updated_at: string;
       first_name?: string;
       last_name?: string;
     } = {
       role,
-      phone: phone || null,
+      phone_number: phoneNumber || null,
+      phone_country_code: phoneCountryCode || "US",
+      phone_consent: phoneNumber ? true : false,
       onboarding_completed: true,
       updated_at: new Date().toISOString(),
     };
@@ -128,7 +132,7 @@ export default async function OnboardingPage({
     <AuthLayout panel={<MarketingPanel />}>
       <Card>
         <CardHeader>
-          <CardTitle>Welcome to AI-Assisted Grading!</CardTitle>
+          <CardTitle>Welcome to Autograder!</CardTitle>
           <CardDescription>
             Let's set up your profile to get you started.
           </CardDescription>
@@ -144,68 +148,11 @@ export default async function OnboardingPage({
               Please provide your first and last name to complete your profile.
             </Alert>
           )}
-          <form action={completeOnboarding} className="space-y-6">
-            <div className="space-y-4">
-              {needsNames && (
-                <>
-                  <div className="grid gap-3">
-                    <Label htmlFor="first_name">
-                      First Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="first_name"
-                      name="first_name"
-                      type="text"
-                      placeholder="Enter your first name"
-                      required
-                      defaultValue={userData?.first_name || ""}
-                    />
-                  </div>
-                  <div className="grid gap-3">
-                    <Label htmlFor="last_name">
-                      Last Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="last_name"
-                      name="last_name"
-                      type="text"
-                      placeholder="Enter your last name"
-                      required
-                      defaultValue={userData?.last_name || ""}
-                    />
-                  </div>
-                </>
-              )}
-              <div className="grid gap-3">
-                <Label htmlFor="role">I am a...</Label>
-                <Select name="role" required>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instructor">Instructor</SelectItem>
-                    <SelectItem value="ta">Teaching Assistant</SelectItem>
-                    <SelectItem value="student">Student</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-3">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Button type="submit" className="w-full">
-                Complete Setup
-              </Button>
-            </div>
-          </form>
+          <OnboardingForm
+            completeOnboarding={completeOnboarding}
+            needsNames={needsNames}
+            userData={userData}
+          />
         </CardContent>
       </Card>
     </AuthLayout>

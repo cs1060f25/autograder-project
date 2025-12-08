@@ -4,9 +4,8 @@ export function MarketingPanel() {
       <div className="space-y-4">
         <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
           <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
-            AI-Assisted
+            Autograder
           </span>
-          <span className="text-black block">Grading Platform</span>
         </h1>
         <p className="text-xl text-gray-600 leading-relaxed">
           Transform your grading process with intelligent automation that saves
@@ -36,9 +35,9 @@ export function MarketingPanel() {
               Intelligent Assessment
             </h3>
             <p className="text-gray-600">
-              Advanced AI algorithms analyze student work with human-level
-              understanding and consistency, greatly accelerating the human
-              grading process.
+              Advanced large language models analyze student work with
+              human-level understanding and consistency, greatly accelerating
+              the grading process.
             </p>
           </div>
         </div>
@@ -61,10 +60,10 @@ export function MarketingPanel() {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              Instant Feedback
+              Personal Feedback
             </h3>
             <p className="text-gray-600">
-              Provide immediate, detailed feedback to students, accelerating
+              Provide personalized, detailed feedback to students, accelerating
               their learning process.
             </p>
           </div>
@@ -88,7 +87,7 @@ export function MarketingPanel() {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              Secure & Reliable
+              Secure & Protected
             </h3>
             <p className="text-gray-600">
               Encryption ensures that sensitive student data is protected at all

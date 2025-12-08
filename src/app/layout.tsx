@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI-Assisted Grading Platform",
+  title: "Autograder",
   description: "An AI-Assisted Tool for Submitting and Grading Assignments",
 };
 

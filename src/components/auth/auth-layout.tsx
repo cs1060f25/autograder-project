@@ -10,9 +10,20 @@ export function AuthLayout({ panel, children }: AuthLayoutProps) {
     <div className="min-h-svh bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-4rem)]">
+          {/* Full panel for desktop */}
           <div className="hidden lg:block">{panel}</div>
-          <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-sm">{children}</div>
+
+          <div className="flex flex-col gap-6 justify-center lg:justify-end">
+            {/* Show just the title on mobile */}
+            <div className="lg:hidden text-center">
+              <h1 className="text-3xl font-bold">
+                <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
+                  Autograder
+                </span>
+              </h1>
+            </div>
+
+            <div className="w-full max-w-sm mx-auto">{children}</div>
           </div>
         </div>
       </div>

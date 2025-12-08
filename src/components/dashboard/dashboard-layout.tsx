@@ -45,7 +45,7 @@ export function DashboardLayout({
               <div className="flex items-center space-x-2">
                 <Link href="/">
                   <h1 className="text-xl bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent font-bold hover:opacity-80 transition-opacity cursor-pointer">
-                    AI Grading Platform
+                    Autograder
                   </h1>
                 </Link>
               </div>
