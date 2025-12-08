@@ -258,9 +258,9 @@ export function RegradeReviewModal({
                   <p className="text-sm font-medium text-blue-900 mb-1">
                     Criterion Description
                   </p>
-                  <p className="text-sm text-blue-800">
-                    {auditMetadata.rubric_criterion_text}
-                  </p>
+                  <div className="text-sm text-blue-800">
+                    <LaTeXText content={auditMetadata.rubric_criterion_text} />
+                  </div>
                 </div>
               )}
 

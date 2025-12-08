@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { submitRegradeRequest } from "@/lib/regrade-actions";
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { LaTeXText } from "@/components/ui/latex-text";
 
 interface RegradeRequestModalProps {
   isOpen: boolean;
@@ -73,7 +80,9 @@ export function RegradeRequestModal({
     }
   };
 
-  const selectedItem = rubricItems.find((item) => item.id === selectedRubricItem);
+  const selectedItem = rubricItems.find(
+    (item) => item.id === selectedRubricItem
+  );
   const characterCount = explanation.length;
   const maxCharacters = 5000;
 
@@ -83,7 +92,8 @@ export function RegradeRequestModal({
         <DialogHeader>
           <DialogTitle>Request Regrade</DialogTitle>
           <DialogDescription>
-            Submit a regrade request for {assignmentTitle}. Select the rubric item you believe was graded incorrectly and explain why.
+            Submit a regrade request for {assignmentTitle}. Select the rubric
+            item you believe was graded incorrectly and explain why.
           </DialogDescription>
         </DialogHeader>
 
@@ -91,7 +101,8 @@ export function RegradeRequestModal({
           <Alert className="bg-green-50 border-green-200">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
-              Regrade request submitted successfully! Your instructor/TA will review it soon.
+              Regrade request submitted successfully! Your instructor/TA will
+              review it soon.
             </AlertDescription>
           </Alert>
         ) : (
@@ -108,7 +119,9 @@ export function RegradeRequestModal({
               <select
                 id="rubric-item"
                 value={selectedRubricItem}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedRubricItem(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setSelectedRubricItem(e.target.value)
+                }
                 className="w-full p-2 border rounded-md"
                 required
                 disabled={isSubmitting}
@@ -116,31 +129,41 @@ export function RegradeRequestModal({
                 <option value="">-- Select a rubric item --</option>
                 {rubricItems.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} {item.deduction !== undefined ? `(-${item.deduction} points)` : ""}
+                    {item.name}{" "}
+                    {item.deduction !== undefined
+                      ? `(-${item.deduction} points)`
+                      : ""}
                   </option>
                 ))}
               </select>
               {selectedItem && (
                 <div className="mt-2 p-3 bg-gray-50 rounded-md text-sm">
                   <p className="font-medium">{selectedItem.name}</p>
-                  <p className="text-gray-600 mt-1">{selectedItem.description}</p>
+                  <div className="text-gray-600 mt-1">
+                    <LaTeXText content={selectedItem.description} />
+                  </div>
                   <div className="mt-2 flex items-center gap-4">
                     <p className="text-gray-700">
-                      <span className="font-medium">Max Points:</span> {selectedItem.points}
+                      <span className="font-medium">Max Points:</span>{" "}
+                      {selectedItem.points}
                     </p>
-                    {selectedItem.deduction !== undefined && selectedItem.deduction > 0 && (
-                      <>
-                        <p className="text-blue-600">
-                          <span className="font-medium">Your Score:</span> {selectedItem.points - selectedItem.deduction}
-                        </p>
-                        <p className="text-red-600">
-                          <span className="font-medium">Deduction:</span> -{selectedItem.deduction} points
-                        </p>
-                      </>
-                    )}
+                    {selectedItem.deduction !== undefined &&
+                      selectedItem.deduction > 0 && (
+                        <>
+                          <p className="text-blue-600">
+                            <span className="font-medium">Your Score:</span>{" "}
+                            {selectedItem.points - selectedItem.deduction}
+                          </p>
+                          <p className="text-red-600">
+                            <span className="font-medium">Deduction:</span> -
+                            {selectedItem.deduction} points
+                          </p>
+                        </>
+                      )}
                     {selectedItem.deduction === 0 && (
                       <p className="text-green-600">
-                        <span className="font-medium">Your Score:</span> {selectedItem.points} (Full credit)
+                        <span className="font-medium">Your Score:</span>{" "}
+                        {selectedItem.points} (Full credit)
                       </p>
                     )}
                   </div>
@@ -150,7 +173,7 @@ export function RegradeRequestModal({
 
             <div className="space-y-2">
               <Label htmlFor="explanation">
-                Explanation * 
+                Explanation *
                 <span className="text-sm text-gray-500 ml-2">
                   ({characterCount}/{maxCharacters} characters)
                 </span>
@@ -167,7 +190,8 @@ export function RegradeRequestModal({
                 className="resize-none"
               />
               <p className="text-sm text-gray-500">
-                Provide a clear explanation of why you believe the deduction was incorrect. Include specific references to your work.
+                Provide a clear explanation of why you believe the deduction was
+                incorrect. Include specific references to your work.
               </p>
             </div>
 
@@ -182,7 +206,9 @@ export function RegradeRequestModal({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || !selectedRubricItem || !explanation.trim()}
+                disabled={
+                  isSubmitting || !selectedRubricItem || !explanation.trim()
+                }
               >
                 {isSubmitting ? (
                   <>

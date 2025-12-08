@@ -11,7 +11,7 @@ interface LaTeXTextProps {
 
 /**
  * Component that renders text with LaTeX equations.
- * Supports both inline math ($...$) and block math ($$...$$) syntax.
+ * Supports inline math ($...$, \(...\)) and block math ($$...$$, \[...\]) syntax.
  */
 export function LaTeXText({
   content,
@@ -24,16 +24,111 @@ export function LaTeXText({
   }
 
   // Split content by LaTeX delimiters
-  // Matches: $$...$$ (block math) and $...$ (inline math)
+  // Matches: $$...$$ and \[...\] (block math), $...$ and \(...\) (inline math)
   const parts: Array<{ type: "text" | "block" | "inline"; content: string }> =
     [];
   let lastIndex = 0;
   let inBlock = false;
   let inInline = false;
+  let inBracketBlock = false;
+  let inParenInline = false;
   let blockStart = -1;
   let inlineStart = -1;
+  let bracketBlockStart = -1;
+  let parenInlineStart = -1;
 
   for (let i = 0; i < content.length; i++) {
+    // Check for \[ block math delimiter
+    if (
+      !inBlock &&
+      !inInline &&
+      !inParenInline &&
+      i < content.length - 1 &&
+      content[i] === "\\" &&
+      content[i + 1] === "["
+    ) {
+      if (!inBracketBlock) {
+        // Start of \[ block math
+        if (i > lastIndex) {
+          const textContent = content.slice(lastIndex, i);
+          if (textContent) {
+            parts.push({ type: "text", content: textContent });
+          }
+        }
+        inBracketBlock = true;
+        bracketBlockStart = i;
+        i++; // Skip [
+        continue;
+      }
+    }
+
+    // Check for \] end block math delimiter
+    if (
+      inBracketBlock &&
+      i < content.length - 1 &&
+      content[i] === "\\" &&
+      content[i + 1] === "]"
+    ) {
+      // End of \[ block math
+      const mathContent = content.slice(bracketBlockStart + 2, i);
+      if (mathContent.trim()) {
+        parts.push({ type: "block", content: mathContent });
+      }
+      inBracketBlock = false;
+      bracketBlockStart = -1;
+      lastIndex = i + 2;
+      i++; // Skip ]
+      continue;
+    }
+
+    // Check for \( inline math delimiter
+    if (
+      !inBlock &&
+      !inInline &&
+      !inBracketBlock &&
+      i < content.length - 1 &&
+      content[i] === "\\" &&
+      content[i + 1] === "("
+    ) {
+      if (!inParenInline) {
+        // Start of \( inline math
+        if (i > lastIndex) {
+          const textContent = content.slice(lastIndex, i);
+          if (textContent) {
+            parts.push({ type: "text", content: textContent });
+          }
+        }
+        inParenInline = true;
+        parenInlineStart = i;
+        i++; // Skip (
+        continue;
+      }
+    }
+
+    // Check for \) end inline math delimiter
+    if (
+      inParenInline &&
+      i < content.length - 1 &&
+      content[i] === "\\" &&
+      content[i + 1] === ")"
+    ) {
+      // End of \( inline math
+      const mathContent = content.slice(parenInlineStart + 2, i);
+      if (mathContent.trim()) {
+        parts.push({ type: "inline", content: mathContent });
+      }
+      inParenInline = false;
+      parenInlineStart = -1;
+      lastIndex = i + 2;
+      i++; // Skip )
+      continue;
+    }
+
+    // Skip $ processing if we're in bracket or paren delimiters
+    if (inBracketBlock || inParenInline) {
+      continue;
+    }
+
     // Check for block math delimiter $$
     if (
       i < content.length - 1 &&
@@ -132,4 +227,3 @@ export function LaTeXText({
     </span>
   );
 }
-
