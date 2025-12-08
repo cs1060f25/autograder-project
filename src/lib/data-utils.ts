@@ -261,9 +261,14 @@ export async function getTAAssignments(userProfile: UserProfile): Promise<{
         submissions?.filter((s) => s.status === "graded").length || 0;
       const grades =
         submissions?.filter((s) => s.grade !== null).map((s) => s.grade!) || [];
+
+      // Calculate average grade as percentage of max_points
       const average_grade =
-        grades.length > 0
-          ? grades.reduce((a, b) => a + b, 0) / grades.length
+        grades.length > 0 && assignment.max_points > 0
+          ? (grades.reduce((a, b) => a + b, 0) /
+              grades.length /
+              assignment.max_points) *
+            100
           : null;
 
       return {
@@ -409,24 +414,45 @@ export async function getInstructorData(userProfile: UserProfile): Promise<{
         .eq("course_id", course.id);
 
       // Get average grade for this course
+      const { data: courseAssignments } = await supabase
+        .from("assignments")
+        .select("id, max_points")
+        .eq("course_id", course.id);
+
+      if (!courseAssignments || courseAssignments.length === 0) {
+        return {
+          ...course,
+          assignments_count: assignmentsCount || 0,
+          students_count: studentsCount || 0,
+          average_grade: null,
+        };
+      }
+
       const { data: submissions } = await supabase
         .from("submissions")
-        .select("grade")
+        .select("grade, assignment_id")
         .in(
           "assignment_id",
-          (
-            await supabase
-              .from("assignments")
-              .select("id")
-              .eq("course_id", course.id)
-          ).data?.map((a) => a.id) || []
+          courseAssignments.map((a) => a.id)
         )
         .not("grade", "is", null);
 
-      const grades = submissions?.map((s) => s.grade) || [];
+      // Calculate percentage grades for each submission based on assignment max_points
+      const percentageGrades =
+        submissions
+          ?.map((s) => {
+            const assignment = courseAssignments.find(
+              (a) => a.id === s.assignment_id
+            );
+            if (!assignment || assignment.max_points === 0) return null;
+            return (s.grade / assignment.max_points) * 100;
+          })
+          .filter((g): g is number => g !== null) || [];
+
       const average_grade =
-        grades.length > 0
-          ? grades.reduce((a, b) => a + b, 0) / grades.length
+        percentageGrades.length > 0
+          ? percentageGrades.reduce((a, b) => a + b, 0) /
+            percentageGrades.length
           : null;
 
       return {
@@ -468,9 +494,14 @@ export async function getInstructorData(userProfile: UserProfile): Promise<{
         submissions?.filter((s) => s.status === "graded").length || 0;
       const grades =
         submissions?.filter((s) => s.grade !== null).map((s) => s.grade!) || [];
+
+      // Calculate average grade as percentage of max_points
       const average_grade =
-        grades.length > 0
-          ? grades.reduce((a, b) => a + b, 0) / grades.length
+        grades.length > 0 && assignment.max_points > 0
+          ? (grades.reduce((a, b) => a + b, 0) /
+              grades.length /
+              assignment.max_points) *
+            100
           : null;
 
       return {
@@ -587,9 +618,14 @@ export async function getCourseAssignments(
         submissions?.filter((s) => s.status === "graded").length || 0;
       const grades =
         submissions?.filter((s) => s.grade !== null).map((s) => s.grade!) || [];
+
+      // Calculate average grade as percentage of max_points
       const average_grade =
-        grades.length > 0
-          ? grades.reduce((a, b) => a + b, 0) / grades.length
+        grades.length > 0 && assignment.max_points > 0
+          ? (grades.reduce((a, b) => a + b, 0) /
+              grades.length /
+              assignment.max_points) *
+            100
           : null;
 
       return {

@@ -315,7 +315,10 @@ export async function getAssignmentWithSubmissions(assignmentId: string) {
   }
 
   // Verify instructor owns this assignment or is a TA for the course
-  if (userProfile.role === "instructor" && assignment.instructor_id !== userProfile.id) {
+  if (
+    userProfile.role === "instructor" &&
+    assignment.instructor_id !== userProfile.id
+  ) {
     return { success: false, error: "Unauthorized" };
   }
 
@@ -342,10 +345,21 @@ export async function getAssignmentWithSubmissions(assignmentId: string) {
 
   // Calculate stats
   const totalSubmissions = submissions?.length || 0;
-  const gradedSubmissions = submissions?.filter((s) => s.status === "graded").length || 0;
-  const pendingSubmissions = submissions?.filter((s) => s.status === "submitted").length || 0;
-  const grades = submissions?.filter((s) => s.grade !== null).map((s) => s.grade!) || [];
-  const averageGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : null;
+  const gradedSubmissions =
+    submissions?.filter((s) => s.status === "graded").length || 0;
+  const pendingSubmissions =
+    submissions?.filter((s) => s.status === "submitted").length || 0;
+  const grades =
+    submissions?.filter((s) => s.grade !== null).map((s) => s.grade!) || [];
+
+  // Calculate average grade as percentage of max_points
+  const averageGrade =
+    grades.length > 0 && assignment.max_points > 0
+      ? (grades.reduce((a, b) => a + b, 0) /
+          grades.length /
+          assignment.max_points) *
+        100
+      : null;
 
   return {
     success: true,

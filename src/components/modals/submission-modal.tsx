@@ -270,7 +270,8 @@ export function SubmissionModal({
 
           {/* Grade Display */}
           {existingSubmission?.status === "graded" &&
-            existingSubmission.grade !== undefined && (
+            existingSubmission.grade !== undefined &&
+            maxPoints && (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
@@ -281,7 +282,9 @@ export function SubmissionModal({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-green-700">Grade:</span>
                   <span className="text-lg font-bold text-green-800">
-                    {existingSubmission.grade}%
+                    {existingSubmission.grade} / {maxPoints} (
+                    {((existingSubmission.grade / maxPoints) * 100).toFixed(1)}
+                    %)
                   </span>
                 </div>
                 {existingSubmission.graded_at && (
