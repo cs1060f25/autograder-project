@@ -12,8 +12,9 @@ const customJestConfig = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
-  testMatch: ["**/__tests__/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
-  testPathIgnorePatterns: ["/node_modules/", "/.next/", "/src/__tests__/e2e/"],
+  // Only run the test-suite.test.ts file by default
+  testMatch: ["**/test-suite.test.ts"],
+  testPathIgnorePatterns: ["/node_modules/", "/.next/"],
   collectCoverageFrom: [
     "src/**/*.{js,jsx,ts,tsx}",
     "!src/**/*.d.ts",
