@@ -309,6 +309,11 @@ export function SubmissionModal({
                   pts
                 </span>
               </div>
+              {existingSubmission?.status !== "graded" && (
+                <p className="text-xs text-gray-500 mb-3">
+                  Detailed criteria descriptions will be shown after grading.
+                </p>
+              )}
               <div className="space-y-3">
                 {rubric.criteria.map((c: RubricCriterion) => (
                   <div
@@ -327,11 +332,12 @@ export function SubmissionModal({
                           : `/ ${c.max_points} pts`}
                       </span>
                     </div>
-                    {c.description && (
-                      <div className="text-sm text-gray-700 mt-1">
-                        <LaTeXText content={c.description} />
-                      </div>
-                    )}
+                    {c.description &&
+                      existingSubmission?.status === "graded" && (
+                        <div className="text-sm text-gray-700 mt-1">
+                          <LaTeXText content={c.description} />
+                        </div>
+                      )}
                   </div>
                 ))}
               </div>

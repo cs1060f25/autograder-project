@@ -996,9 +996,9 @@ export function GradingModal({
                                   </span>
                                 </div>
                                 {aiItem.comments && (
-                                  <p className="text-xs text-blue-700">
-                                    {aiItem.comments}
-                                  </p>
+                                  <div className="text-xs text-blue-700">
+                                    <LaTeXText content={aiItem.comments} />
+                                  </div>
                                 )}
                               </div>
                             )}
