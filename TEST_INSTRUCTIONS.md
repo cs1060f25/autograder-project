@@ -4,7 +4,7 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/cs1060f25/autograder-project
 cd autograder-project
 ```
 
