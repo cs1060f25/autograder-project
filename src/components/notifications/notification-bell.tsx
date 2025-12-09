@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Bell } from "lucide-react";
-import { getUserNotifications, getUnreadCount, markNotificationAsRead, markAllAsRead } from "@/lib/notification-actions";
+import {
+  getUserNotifications,
+  getUnreadCount,
+  markNotificationAsRead,
+  markAllAsRead,
+} from "@/lib/notification-actions";
 import { NotificationRecord } from "@/services/notifications/types";
 import { formatDistanceToNow } from "@/lib/date-utils";
 
@@ -23,19 +28,26 @@ export function NotificationBell() {
 
       if (notifResult.success && notifResult.data) {
         // Group notifications by event_type and created_at to remove duplicates
-        const uniqueNotifications = notifResult.data.reduce((acc: any[], notification: any) => {
-          // Check if we already have a notification with same event_type within 1 second
-          const isDuplicate = acc.some(n => 
-            n.event_type === notification.event_type &&
-            Math.abs(new Date(n.created_at).getTime() - new Date(notification.created_at).getTime()) < 1000
-          );
-          
-          if (!isDuplicate) {
-            acc.push(notification);
-          }
-          return acc;
-        }, []);
-        
+        const uniqueNotifications = notifResult.data.reduce(
+          (acc: any[], notification: any) => {
+            // Check if we already have a notification with same event_type within 1 second
+            const isDuplicate = acc.some(
+              (n) =>
+                n.event_type === notification.event_type &&
+                Math.abs(
+                  new Date(n.created_at).getTime() -
+                    new Date(notification.created_at).getTime()
+                ) < 1000
+            );
+
+            if (!isDuplicate) {
+              acc.push(notification);
+            }
+            return acc;
+          },
+          []
+        );
+
         setNotifications(uniqueNotifications.slice(0, 10)); // Take first 10 unique
       }
 
@@ -119,7 +131,7 @@ export function NotificationBell() {
       // For SMS: show body text without HTML
       if (parsed.body) {
         // Strip HTML tags and get plain text
-        const plainText = parsed.body.replace(/<[^>]*>/g, '').trim();
+        const plainText = parsed.body.replace(/<[^>]*>/g, "").trim();
         return plainText.substring(0, 100);
       }
       return "New notification";
@@ -136,7 +148,7 @@ export function NotificationBell() {
           setIsOpen(!isOpen);
           if (!isOpen) loadNotifications();
         }}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition"
+        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition hover:cursor-pointer"
       >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
@@ -175,9 +187,7 @@ export function NotificationBell() {
             {/* Notifications List */}
             <div className="overflow-y-auto flex-1">
               {loading ? (
-                <div className="p-8 text-center text-gray-500">
-                  Loading...
-                </div>
+                <div className="p-8 text-center text-gray-500">Loading...</div>
               ) : notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
@@ -210,7 +220,9 @@ export function NotificationBell() {
                             {getMessagePreview(notification.message)}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
-                            {formatDistanceToNow(new Date(notification.created_at))}
+                            {formatDistanceToNow(
+                              new Date(notification.created_at)
+                            )}
                           </p>
                         </div>
                       </div>

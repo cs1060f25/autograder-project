@@ -315,11 +315,22 @@ export async function getAssignmentWithSubmissions(assignmentId: string) {
   }
 
   // Verify instructor owns this assignment or is a TA for the course
-  if (
-    userProfile.role === "instructor" &&
-    assignment.instructor_id !== userProfile.id
-  ) {
-    return { success: false, error: "Unauthorized" };
+  if (userProfile.role === "instructor") {
+    if (assignment.instructor_id !== userProfile.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+  } else if (userProfile.role === "ta") {
+    // Verify TA is assigned to this course
+    const { data: taAssignment } = await supabase
+      .from("course_ta_assignments")
+      .select("id")
+      .eq("ta_id", userProfile.id)
+      .eq("course_id", assignment.course_id)
+      .single();
+
+    if (!taAssignment) {
+      return { success: false, error: "Unauthorized" };
+    }
   }
 
   // Get all submissions for this assignment with student details

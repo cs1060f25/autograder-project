@@ -175,7 +175,8 @@ export function AssignmentDetailContent({
                     : "bg-orange-500"
                 }
               >
-                {assignment.status}
+                {assignment.status.charAt(0).toUpperCase() +
+                  assignment.status.slice(1)}
               </Badge>
             </div>
           </CardHeader>

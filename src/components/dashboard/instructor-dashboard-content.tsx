@@ -177,16 +177,6 @@ export function InstructorDashboardContent({
   return (
     <>
     <div className="space-y-6">
-      {/* Quick Actions */}
-      <div className="flex justify-end gap-3">
-        <Link href="/dashboard/regrade-requests">
-          <Button variant="outline" className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            View Regrade Requests
-          </Button>
-        </Link>
-      </div>
-
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>

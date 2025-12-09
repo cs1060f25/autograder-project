@@ -7,9 +7,18 @@ import { requireRole } from "@/lib/user-utils";
 import { getTAAssignments, Assignment, Submission } from "@/lib/data-utils";
 import { createClient } from "@/utils/supabase/client";
 import { GradingModal } from "@/components/modals/grading-modal";
-import { FileText, Clock, CheckCircle, Star, BarChart3, AlertCircle } from "lucide-react";
+import {
+  FileText,
+  Clock,
+  CheckCircle,
+  Star,
+  BarChart3,
+  AlertCircle,
+  ChevronRight,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface TADashboardData {
   assignments: (Assignment & {
@@ -30,6 +39,7 @@ interface TADashboardData {
 }
 
 export default function TADashboard() {
+  const router = useRouter();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [data, setData] = useState<TADashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -209,13 +219,18 @@ export default function TADashboard() {
                     data.assignments.map((assignment) => (
                       <div
                         key={assignment.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/ta/assignments/${assignment.id}`
+                          )
+                        }
                       >
-                        <div>
-                          <h3 className="font-medium text-gray-900">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-950">
                             {assignment.title}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-700">
                             {assignment.course?.code || "Unknown Course"} • Due:{" "}
                             {new Date(assignment.due_date).toLocaleDateString()}
                           </p>
@@ -229,6 +244,7 @@ export default function TADashboard() {
                             </span>
                           </div>
                         </div>
+                        <ChevronRight className="h-5 w-5 text-gray-600 flex-shrink-0 ml-4" />
                       </div>
                     ))
                   )}
@@ -255,20 +271,21 @@ export default function TADashboard() {
                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                         onClick={() => handleGradeClick(item.id)}
                       >
-                        <div>
-                          <h3 className="font-medium text-gray-900">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-950">
                             {item.student?.first_name} {item.student?.last_name}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-700">
                             {item.assignment?.title}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-600">
                             Submitted:{" "}
                             {item.submitted_at
                               ? new Date(item.submitted_at).toLocaleDateString()
                               : "Unknown"}
                           </p>
                         </div>
+                        <ChevronRight className="h-5 w-5 text-gray-600 flex-shrink-0 ml-4" />
                       </div>
                     ))
                   )}
