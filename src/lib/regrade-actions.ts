@@ -284,7 +284,68 @@ export async function getCourseRegradeRequests(
     const userProfile = await requireAuth();
     const supabase = await createClient();
 
-    let query = supabase
+    // Get course IDs the user has access to (as instructor or TA)
+    let accessibleCourseIds: string[] = [];
+
+    // Get courses where user is instructor
+    const { data: instructorCourses } = await supabase
+      .from("courses")
+      .select("id")
+      .eq("instructor_id", userProfile.id);
+
+    if (instructorCourses) {
+      accessibleCourseIds.push(...instructorCourses.map((c) => c.id));
+    }
+
+    // Get courses where user is TA
+    const { data: taCourses } = await supabase
+      .from("course_ta_assignments")
+      .select("course_id")
+      .eq("ta_id", userProfile.id);
+
+    if (taCourses) {
+      accessibleCourseIds.push(...taCourses.map((c) => c.course_id));
+    }
+
+    // Remove duplicates
+    accessibleCourseIds = [...new Set(accessibleCourseIds)];
+
+    // If user has no accessible courses, return empty list
+    if (accessibleCourseIds.length === 0) {
+      return {
+        success: true,
+        requests: [],
+      };
+    }
+
+    // Filter by specific course if provided
+    if (courseId) {
+      if (!accessibleCourseIds.includes(courseId)) {
+        return {
+          success: false,
+          error: "You do not have access to this course",
+        };
+      }
+      accessibleCourseIds = [courseId];
+    }
+
+    // Get all assignments for accessible courses
+    const { data: assignments } = await supabase
+      .from("assignments")
+      .select("id")
+      .in("course_id", accessibleCourseIds);
+
+    if (!assignments || assignments.length === 0) {
+      return {
+        success: true,
+        requests: [],
+      };
+    }
+
+    const assignmentIds = assignments.map((a) => a.id);
+
+    // Get regrade requests for these assignments
+    const { data: requests, error } = await supabase
       .from("regrade_requests")
       .select(`
         *,
@@ -298,14 +359,8 @@ export async function getCourseRegradeRequests(
           email
         )
       `)
+      .in("assignment_id", assignmentIds)
       .order("created_at", { ascending: false });
-
-    // Filter by course if specified
-    if (courseId) {
-      query = query.eq("assignments.course_id", courseId);
-    }
-
-    const { data: requests, error } = await query;
 
     if (error) {
       console.error("Error fetching course regrade requests:", error);
