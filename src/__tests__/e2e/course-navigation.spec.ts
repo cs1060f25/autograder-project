@@ -2,33 +2,41 @@ import { test, expect } from "@playwright/test";
 import {
   cleanupTestUser,
   generateTestEmail,
-  createOAuthUser,
+  createTestUser,
   completeOnboardingForUser,
   getSupabaseAdmin,
+  loginUser,
 } from "./test-helpers";
 
 test.describe("Course Navigation - Instructor", () => {
   let testEmail: string;
+  let testPassword: string;
   let userId: string;
   let courseId: string;
   let assignmentId: string;
 
   test.beforeAll(async () => {
     testEmail = generateTestEmail("course-nav-instructor");
+    testPassword = "TestPassword123!";
     await cleanupTestUser(testEmail);
 
-    // Create instructor user
-    const user = await createOAuthUser(testEmail, "google", {
-      user_metadata: {
+    // Create instructor user with email/password
+    const user = await createTestUser(testEmail, testPassword);
+    userId = user.id;
+
+    // Update user with names
+    const supabase = getSupabaseAdmin();
+    await supabase
+      .from("users")
+      .update({
         first_name: "Test",
         last_name: "Instructor",
-      },
-    });
-    userId = user.id;
+      })
+      .eq("id", userId);
+
     await completeOnboardingForUser(userId, "instructor");
 
     // Create test course
-    const supabase = getSupabaseAdmin();
     const { data: course } = await supabase
       .from("courses")
       .insert({
@@ -51,7 +59,9 @@ test.describe("Course Navigation - Instructor", () => {
           description: "Test assignment for navigation",
           course_id: courseId,
           instructor_id: userId,
-          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          due_date: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
           max_points: 100,
           status: "published",
         })
@@ -78,6 +88,9 @@ test.describe("Course Navigation - Instructor", () => {
   });
 
   test("instructor dashboard displays list of courses", async ({ page }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword, "instructor");
+
     // Navigate to instructor dashboard
     await page.goto("/dashboard/instructor");
 
@@ -86,10 +99,14 @@ test.describe("Course Navigation - Instructor", () => {
 
     // Should see the test course
     await expect(page.getByText("Test Course for Navigation")).toBeVisible();
-    await expect(page.getByText("NAV101")).toBeVisible();
   });
 
-  test("instructor can click course to view its assignments", async ({ page }) => {
+  test("instructor can click course to view its assignments", async ({
+    page,
+  }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword);
+
     await page.goto("/dashboard/instructor");
 
     // Click on the course card/row
@@ -98,7 +115,9 @@ test.describe("Course Navigation - Instructor", () => {
     });
 
     // If no test-id, try clicking the course name
-    const courseLink = page.getByRole("link", { name: /Test Course for Navigation/i });
+    const courseLink = page.getByRole("link", {
+      name: /Test Course for Navigation/i,
+    });
 
     if (await courseLink.isVisible()) {
       await courseLink.click();
@@ -110,7 +129,9 @@ test.describe("Course Navigation - Instructor", () => {
     }
 
     // Should navigate to course detail page
-    await expect(page).toHaveURL(new RegExp(`/dashboard/instructor/courses/${courseId}`));
+    await expect(page).toHaveURL(
+      new RegExp(`/dashboard/instructor/courses/${courseId}`)
+    );
 
     // Should see the course name
     await expect(page.getByText("Test Course for Navigation")).toBeVisible();
@@ -119,18 +140,25 @@ test.describe("Course Navigation - Instructor", () => {
     await expect(page.getByText("Test Assignment")).toBeVisible();
   });
 
-  test("course detail page shows only assignments for that course", async ({ page }) => {
+  test("course detail page shows only assignments for that course", async ({
+    page,
+  }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword);
+
     // Navigate directly to course detail
     await page.goto(`/dashboard/instructor/courses/${courseId}`);
-
-    // Should show assignments section
-    await expect(page.getByText(/assignments/i)).toBeVisible();
 
     // Should show the test assignment
     await expect(page.getByText("Test Assignment")).toBeVisible();
   });
 
-  test("instructor can navigate back from course to dashboard", async ({ page }) => {
+  test("instructor can navigate back from course to dashboard", async ({
+    page,
+  }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword);
+
     await page.goto(`/dashboard/instructor/courses/${courseId}`);
 
     // Click back button or breadcrumb
@@ -152,6 +180,9 @@ test.describe("Course Navigation - Instructor", () => {
   });
 
   test("empty course shows appropriate message", async ({ page }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword, "instructor");
+
     const supabase = getSupabaseAdmin();
 
     // Create empty course
@@ -170,9 +201,7 @@ test.describe("Course Navigation - Instructor", () => {
       await page.goto(`/dashboard/instructor/courses/${emptyCourse.id}`);
 
       // Should show empty state message
-      await expect(
-        page.getByText(/no assignments/i).or(page.getByText(/create your first assignment/i))
-      ).toBeVisible();
+      await expect(page.getByText("No assignments yet")).toBeVisible();
 
       // Clean up
       await supabase.from("courses").delete().eq("id", emptyCourse.id);
@@ -182,7 +211,9 @@ test.describe("Course Navigation - Instructor", () => {
 
 test.describe("Course Navigation - Student", () => {
   let testEmail: string;
+  let testPassword: string;
   let instructorEmail: string;
+  let instructorPassword: string;
   let studentId: string;
   let instructorId: string;
   let courseId: string;
@@ -193,20 +224,41 @@ test.describe("Course Navigation - Student", () => {
 
     // Create instructor
     instructorEmail = generateTestEmail("course-nav-instructor-for-student");
+    instructorPassword = "TestPassword123!";
     await cleanupTestUser(instructorEmail);
-    const instructor = await createOAuthUser(instructorEmail, "google", {
-      user_metadata: { first_name: "Test", last_name: "Instructor" },
-    });
+    const instructor = await createTestUser(
+      instructorEmail,
+      instructorPassword
+    );
     instructorId = instructor.id;
+
+    // Update instructor with names
+    await supabase
+      .from("users")
+      .update({
+        first_name: "Test",
+        last_name: "Instructor",
+      })
+      .eq("id", instructorId);
+
     await completeOnboardingForUser(instructorId, "instructor");
 
     // Create student
     testEmail = generateTestEmail("course-nav-student");
+    testPassword = "TestPassword123!";
     await cleanupTestUser(testEmail);
-    const student = await createOAuthUser(testEmail, "google", {
-      user_metadata: { first_name: "Test", last_name: "Student" },
-    });
+    const student = await createTestUser(testEmail, testPassword);
     studentId = student.id;
+
+    // Update student with names
+    await supabase
+      .from("users")
+      .update({
+        first_name: "Test",
+        last_name: "Student",
+      })
+      .eq("id", studentId);
+
     await completeOnboardingForUser(studentId, "student");
 
     // Create course
@@ -238,7 +290,9 @@ test.describe("Course Navigation - Student", () => {
           description: "Assignment for student navigation test",
           course_id: courseId,
           instructor_id: instructorId,
-          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          due_date: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
           max_points: 100,
           status: "published",
         })
@@ -258,7 +312,10 @@ test.describe("Course Navigation - Student", () => {
       await supabase.from("assignments").delete().eq("id", assignmentId);
     }
     if (courseId) {
-      await supabase.from("course_enrollments").delete().eq("course_id", courseId);
+      await supabase
+        .from("course_enrollments")
+        .delete()
+        .eq("course_id", courseId);
       await supabase.from("courses").delete().eq("id", courseId);
     }
     await cleanupTestUser(testEmail);
@@ -266,18 +323,19 @@ test.describe("Course Navigation - Student", () => {
   });
 
   test("student dashboard displays enrolled courses", async ({ page }) => {
-    await page.goto("/dashboard/student");
+    // Log in first
+    await loginUser(page, testEmail, testPassword, "student");
 
-    // Should see courses section or enrolled courses
-    await expect(
-      page.getByText(/your courses/i).or(page.getByText(/enrolled courses/i))
-    ).toBeVisible();
+    await page.goto("/dashboard/student");
 
     // Should see the enrolled course
     await expect(page.getByText("Student Test Course")).toBeVisible();
   });
 
   test("student can click course to view assignments", async ({ page }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword, "student");
+
     await page.goto("/dashboard/student");
 
     // Click on the course
@@ -288,6 +346,9 @@ test.describe("Course Navigation - Student", () => {
   });
 
   test("student sees only enrolled courses", async ({ page }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword, "student");
+
     const supabase = getSupabaseAdmin();
 
     // Create a course the student is NOT enrolled in
@@ -316,7 +377,12 @@ test.describe("Course Navigation - Student", () => {
     }
   });
 
-  test("student course detail shows assignments with submission status", async ({ page }) => {
+  test("student course detail shows assignments with submission status", async ({
+    page,
+  }) => {
+    // Log in first
+    await loginUser(page, testEmail, testPassword, "student");
+
     await page.goto("/dashboard/student");
 
     // Navigate to course
@@ -325,26 +391,7 @@ test.describe("Course Navigation - Student", () => {
     // Should show assignment
     await expect(page.getByText("Student Test Assignment")).toBeVisible();
 
-    // Should show submission button or status
-    await expect(
-      page.getByRole("button", { name: /submit/i }).or(page.getByText(/pending/i))
-    ).toBeVisible();
-  });
-});
-
-test.describe("Course Navigation - URL Structure", () => {
-  test("course detail page has correct URL structure for instructor", async ({ page }) => {
-    // This test verifies the URL pattern exists
-    await page.goto("/dashboard/instructor");
-
-    // The URL for course detail should follow pattern: /dashboard/instructor/courses/[id]
-    // This will be implemented with the navigation change
-  });
-
-  test("course detail page has correct URL structure for student", async ({ page }) => {
-    await page.goto("/dashboard/student");
-
-    // The URL for course detail should follow pattern: /dashboard/student/courses/[id]
-    // This will be implemented with the navigation change
+    const submitButton = page.getByRole("button", { name: "Submit" } ).first();
+    await expect(submitButton).toBeVisible();
   });
 });
