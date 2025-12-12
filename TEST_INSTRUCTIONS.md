@@ -17,7 +17,7 @@ npm install
 
 ### 3. Configure Environment Variables
 
-Obtain the environment variables by emailing us (jacksonmoody@college.harvard.edu, evanjiang@college.harvard.edu, johnho@college.harvard.edu, andrew_zhang@college.harvard.edu). Then paste them into a .env file in the root of the project.
+Obtain the environment variables from [this private Google Doc](https://docs.google.com/document/d/1rLUupov9PpR-mUOKxzTRZkbkRTBzCiVVAp2CUK8o8_A/edit?usp=sharing). Then paste them into a .env file in the root of the project.
 
 ### 4. Run Tests
 
